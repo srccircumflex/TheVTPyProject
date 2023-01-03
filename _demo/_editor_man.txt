@@ -1,0 +1,119 @@
+                                                                                       #
+            Welcome to the help page of the VT-Python demo.                            #
+                                                                                       #
+This program is only intended to present the possibilities of the framework.           #
+The functionality and appearance of this demo of a text-based editor in the            #
+terminal emulator is inspired by the GNU-NANO editor.                                  #
+                                                                                       #
+                                                                                       #
+__ Legend __                                                                           #
+                                                                                       #
+M                                                                                      #
+    Meta-Symbol Meta/Alt (case sensitive)                                              #
+^                                                                                      #
+    Ctrl-Symbol                                                                        #
+S                                                                                      #
+    Shift-Symbol                                                                       #
+                                                                                       #
+                                                                                       #
+__ Basics __                                                                           #
+                                                                                       #
+^◂▸                                                                                    #
+    Jump with the cursor to a defined position in the text.                            #
+S-◂▸▴▾                                                                                 #
+    Start or move a marking.                                                           #
+<insert>                                                                               #
+    Activate the replacement mode.                                                     #
+^G                                                                                     #
+    Go to row number.                                                                  #
+^D                                                                                     #
+    Go to data point.                                                                  #
+^S                                                                                     #
+    Load the text from a file into the current buffer.                                 #
+^O                                                                                     #
+    Clean the current buffer and open a file.                                          #
+^W                                                                                     #
+    Write the current buffer to a file.                                                #
+^C                                                                                     #
+    Do catalog.                                                                        #
+^_                                                                                     #
+    Open this help page.                                                               #
+^Q                                                                                     #
+    Quit the program.                                                                  #
+                                                                                       #
+                                                                                       #
+Test:                                                                                  #
+                                                                                       #
+^T                                                                                     #
+    Open test file.                                                                    #
+                                                                                       #
+                                                                                       #
+Appearance:                                                                            #
+                                                                                       #
+^N                                                                                     #
+    Activate the display of the line numbering.                                        #
+^▴▾/page-up/page-down                                                                  #
+    Scroll the display.                                                                #
+^-S-▴▾/page-up/page-down                                                               #
+    Scroll the display and mark when the cursor is moved.                              #
+                                                                                       #
+                                                                                       #
+                                                                                       #
+__ Advanced __                                                                         #
+                                                                                       #
+^B                                                                                     #
+    Export data of the current TextBuffer object as Sqlite3 backup database.           #
+^U                                                                                     #
+    Import a data of a TextBuffer object from a Sqlite3 backup database.               #
+^F                                                                                     #
+    Search for a regular expression and jump to the next occurrence. Press Enter       #
+    without typing anything in the prompt to reset.                                    #
+M-f                                                                                    #
+    Jump to the next occurrence of the pattern entered.                                #
+M-w                                                                                    #
+    Jump to the previous occurrence of the entered pattern.                            #
+M-c                                                                                    #
+    Enable/disable cursor movement relative to the input.                              #
+M-l                                                                                    #
+    Enable/disable replacing a line with the next input.                               #
+<insert>+M-l                                                                           #
+    If the simple replacement mode and the line replacement mode are active, the input #
+    of several lines will be replaced associatively.                                   #
+M-[0-9]                                                                                #
+    Set a cursor anchor with number x.                                                 #
+^A                                                                                     #
+    Go to the anchor x.                                                                #
+^L                                                                                     #
+    Go to the line number. In the current configuration equivalent to ^G.              #
+                                                                                       #
+                                                                                       #
+Work with markings:                                                                    #
+                                                                                       #
+Multiple markers are accepted in the current configuration.                            #
+                                                                                       #
+S-<delete>                                                                             #
+    Remove a marker on the position of the cursor.                                     #
+^<backspace>                                                                           #
+    Remove any marked text.                                                            #
+M-<pos1/end>                                                                           #
+    Jump to the nearby marker edge.                                                    #
+M-s                                                                                    #
+    Shift all selected rows by one tab.                                                #
+M-S                                                                                    #
+    Shift all selected rows back by one tab.                                           #
+M-t                                                                                    #
+    Replace all tab ranges in marked text to blanks.                                   #
+M-T                                                                                    #
+    Remove all tab characters in marked text.                                          #
+                                                                                       #
+                                                                                       #
+Chronological control:                                                                 #
+                                                                                       #
+M-u                                                                                    #
+    undo                                                                               #
+M-r                                                                                    #
+    redo                                                                               #
+M-H                                                                                    #
+    Change the chronological branch.                                                   #
+                                                                                       #
+########################################################################################

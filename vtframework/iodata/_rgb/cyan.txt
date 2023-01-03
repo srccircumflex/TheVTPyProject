@@ -1,0 +1,56 @@
+240 255 255    azure
+47  79  79     dark slate gray
+47  79  79     DarkSlateGray
+47  79  79     dark slate grey
+47  79  79     DarkSlateGrey
+30  144 255    dodger blue
+30  144 255    DodgerBlue
+0   191 255    deep sky blue
+0   191 255    DeepSkyBlue
+175 238 238    pale turquoise
+175 238 238    PaleTurquoise
+0   206 209    dark turquoise
+0   206 209    DarkTurquoise
+0   255 255    cyan
+224 255 255    light cyan
+224 255 255    LightCyan
+0   255 127    spring green
+0   255 127    SpringGreen
+0   250 154    medium spring green
+0   250 154    MediumSpringGreen
+240 255 255    azure1
+224 238 238    azure2
+193 205 205    azure3
+131 139 139    azure4
+30  144 255    DodgerBlue1
+28  134 238    DodgerBlue2
+24  116 205    DodgerBlue3
+0   191 255    DeepSkyBlue1
+0   178 238    DeepSkyBlue2
+0   154 205    DeepSkyBlue3
+0   104 139    DeepSkyBlue4
+224 255 255    LightCyan1
+209 238 238    LightCyan2
+180 205 205    LightCyan3
+122 139 139    LightCyan4
+187 255 255    PaleTurquoise1
+174 238 238    PaleTurquoise2
+150 205 205    PaleTurquoise3
+102 139 139    PaleTurquoise4
+0   245 255    turquoise1
+0   229 238    turquoise2
+0   197 205    turquoise3
+0   134 139    turquoise4
+0   255 255    cyan1
+0   238 238    cyan2
+0   205 205    cyan3
+0   139 139    cyan4
+151 255 255    DarkSlateGray1
+141 238 238    DarkSlateGray2
+121 205 205    DarkSlateGray3
+82  139 139    DarkSlateGray4
+0   255 127    SpringGreen1
+0   238 118    SpringGreen2
+0   205 102    SpringGreen3
+0   139 139    dark cyan
+0   139 139    DarkCyan

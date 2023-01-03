@@ -1,0 +1,116 @@
+255 250 250    snow
+248 248 255    ghost white
+248 248 255    GhostWhite
+245 245 245    white smoke
+245 245 245    WhiteSmoke
+220 220 220    gainsboro
+255 250 240    floral white
+255 250 240    FloralWhite
+253 245 230    old lace
+253 245 230    OldLace
+250 240 230    linen
+250 235 215    antique white
+250 235 215    AntiqueWhite
+255 239 213    papaya whip
+255 239 213    PapayaWhip
+255 235 205    blanched almond
+255 235 205    BlanchedAlmond
+255 248 220    cornsilk
+255 255 240    ivory
+255 250 205    lemon chiffon
+255 250 205    LemonChiffon
+255 245 238    seashell
+240 255 240    honeydew
+245 255 250    mint cream
+245 255 250    MintCream
+240 255 255    azure
+240 248 255    alice blue
+240 248 255    AliceBlue
+230 230 250    lavender
+255 240 245    lavender blush
+255 240 245    LavenderBlush
+255 228 225    misty rose
+255 228 225    MistyRose
+255 255 255    white
+211 211 211    light grey
+211 211 211    LightGrey
+211 211 211    light gray
+211 211 211    LightGray
+224 255 255    light cyan
+224 255 255    LightCyan
+250 250 210    light goldenrod yellow
+250 250 210    LightGoldenrodYellow
+255 255 224    light yellow
+255 255 224    LightYellow
+245 245 220    beige
+255 250 250    snow1
+238 233 233    snow2
+205 201 201    snow3
+255 245 238    seashell1
+238 229 222    seashell2
+255 239 219    AntiqueWhite1
+238 223 204    AntiqueWhite2
+255 250 205    LemonChiffon1
+255 248 220    cornsilk1
+238 232 205    cornsilk2
+255 255 240    ivory1
+238 238 224    ivory2
+240 255 240    honeydew1
+224 238 224    honeydew2
+255 240 245    LavenderBlush1
+238 224 229    LavenderBlush2
+255 228 225    MistyRose1
+238 213 210    MistyRose2
+240 255 255    azure1
+224 238 238    azure2
+202 225 255    LightSteelBlue1
+224 255 255    LightCyan1
+209 238 238    LightCyan2
+255 255 224    LightYellow1
+238 238 209    LightYellow2
+255 225 255    thistle1
+238 210 238    thistle2
+201 201 201    gray79
+201 201 201    grey79
+204 204 204    gray80
+204 204 204    grey80
+207 207 207    gray81
+207 207 207    grey81
+209 209 209    gray82
+209 209 209    grey82
+212 212 212    gray83
+212 212 212    grey83
+214 214 214    gray84
+214 214 214    grey84
+217 217 217    gray85
+217 217 217    grey85
+219 219 219    gray86
+219 219 219    grey86
+222 222 222    gray87
+222 222 222    grey87
+224 224 224    gray88
+224 224 224    grey88
+227 227 227    gray89
+227 227 227    grey89
+229 229 229    gray90
+229 229 229    grey90
+232 232 232    gray91
+232 232 232    grey91
+235 235 235    gray92
+235 235 235    grey92
+237 237 237    gray93
+237 237 237    grey93
+240 240 240    gray94
+240 240 240    grey94
+242 242 242    gray95
+242 242 242    grey95
+245 245 245    gray96
+245 245 245    grey96
+247 247 247    gray97
+247 247 247    grey97
+250 250 250    gray98
+250 250 250    grey98
+252 252 252    gray99
+252 252 252    grey99
+255 255 255    gray100
+255 255 255    grey100

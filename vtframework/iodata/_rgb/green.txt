@@ -1,0 +1,83 @@
+240 255 240    honeydew
+245 255 250    mint cream
+245 255 250    MintCream
+72  209 204    medium turquoise
+72  209 204    MediumTurquoise
+64  224 208    turquoise
+102 205 170    medium aquamarine
+102 205 170    MediumAquamarine
+127 255 212    aquamarine
+0   100 0      dark green
+0   100 0      DarkGreen
+85  107 47     dark olive green
+85  107 47     DarkOliveGreen
+143 188 143    dark sea green
+143 188 143    DarkSeaGreen
+46  139 87     sea green
+46  139 87     SeaGreen
+60  179 113    medium sea green
+60  179 113    MediumSeaGreen
+32  178 170    light sea green
+32  178 170    LightSeaGreen
+152 251 152    pale green
+152 251 152    PaleGreen
+0   255 127    spring green
+0   255 127    SpringGreen
+124 252 0      lawn green
+124 252 0      LawnGreen
+0   255 0      green
+127 255 0      chartreuse
+0   250 154    medium spring green
+0   250 154    MediumSpringGreen
+173 255 47     green yellow
+173 255 47     GreenYellow
+50  205 50     lime green
+50  205 50     LimeGreen
+154 205 50     yellow green
+154 205 50     YellowGreen
+34  139 34     forest green
+34  139 34     ForestGreen
+107 142 35     olive drab
+107 142 35     OliveDrab
+240 255 240    honeydew1
+224 238 224    honeydew2
+193 205 193    honeydew3
+131 139 131    honeydew4
+127 255 212    aquamarine1
+118 238 198    aquamarine2
+102 205 170    aquamarine3
+69  139 116    aquamarine4
+193 255 193    DarkSeaGreen1
+180 238 180    DarkSeaGreen2
+155 205 155    DarkSeaGreen3
+105 139 105    DarkSeaGreen4
+84  255 159    SeaGreen1
+78  238 148    SeaGreen2
+67  205 128    SeaGreen3
+46  139 87     SeaGreen4
+154 255 154    PaleGreen1
+144 238 144    PaleGreen2
+124 205 124    PaleGreen3
+84  139 84     PaleGreen4
+0   255 127    SpringGreen1
+0   238 118    SpringGreen2
+0   205 102    SpringGreen3
+0   139 69     SpringGreen4
+0   255 0      green1
+0   238 0      green2
+0   205 0      green3
+0   139 0      green4
+127 255 0      chartreuse1
+118 238 0      chartreuse2
+102 205 0      chartreuse3
+69  139 0      chartreuse4
+192 255 62     OliveDrab1
+179 238 58     OliveDrab2
+154 205 50     OliveDrab3
+105 139 34     OliveDrab4
+202 255 112    DarkOliveGreen1
+188 238 104    DarkOliveGreen2
+162 205 90     DarkOliveGreen3
+110 139 61     DarkOliveGreen4
+144 238 144    light green
+144 238 144    LightGreen

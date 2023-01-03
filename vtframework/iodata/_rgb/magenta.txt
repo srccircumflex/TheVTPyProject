@@ -1,0 +1,27 @@
+255 20  147    deep pink
+255 20  147    DeepPink
+199 21  133    medium violet red
+199 21  133    MediumVioletRed
+255 0   255    magenta
+238 130 238    violet
+221 160 221    plum
+148 0   211    dark violet
+148 0   211    DarkViolet
+216 191 216    thistle
+255 20  147    DeepPink1
+238 18  137    DeepPink2
+205 16  118    DeepPink3
+255 0   255    magenta1
+238 0   238    magenta2
+205 0   205    magenta3
+139 0   139    magenta4
+255 187 255    plum1
+238 174 238    plum2
+205 150 205    plum3
+139 102 139    plum4
+255 225 255    thistle1
+238 210 238    thistle2
+205 181 205    thistle3
+139 123 139    thistle4
+139 0   139    dark magenta
+139 0   139    DarkMagenta

@@ -1,0 +1,46 @@
+
+
+
+		# LICENCE
+
+		from sytaxtree import SyntaxTree, SyntaxGlobals, SyntaxBranch
+
+
+		class SyntaxTree:
+			"""
+			Parser base object for designing an abstract syntax tree.
+			...
+			"""
+
+			def __init__(self):
+				self._globals = SyntaxGlobals()
+				self._root = SyntaxBranch('', '')
+
+			...
+
+			@final
+			def _branch_growing_recursion(self,
+										  string: str,
+										  has_end: bool,
+										  _branches_: list[SyntaxBranch],
+										  ___relstart: int = 0
+										  ) -> list[SyntaxBranch]:
+				if _branches_:
+					# active branches
+
+					print(f"debug line {42} : {map(lambda o: repr(o), _branches_)}")
+
+					if stop_leaf := _branches_[-1].stops(string, ___relstart):
+						# end of branch found
+						# check if a subbranch starts in the range of the parent branch
+						start_leafs: list[SyntaxLeaf] = list()
+
+						_branches_[-1].branch_mapping(string[:stop_leaf.start],
+													  ___relstart,
+													  start_leafs)
+
+						if start_leafs:
+							# start of a subbranch found -> append the subbranch -> recursion
+							_start_leaf = min(start_leafs)
+
+				...
