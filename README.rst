@@ -75,5 +75,5 @@ Markers
 
 
 
-.. _Issues:
-.. _Wiki:
+.. _Issues: ./issues
+.. _Wiki: ./wiki
