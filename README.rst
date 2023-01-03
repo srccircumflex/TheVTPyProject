@@ -75,5 +75,5 @@ Markers
 
 
 
-.. _Issues: ./issues
-.. _Wiki: ./wiki
+.. _Issues: https://github.com/srccircumflex/TheVTPyProject/issues
+.. _Wiki: https://github.com/srccircumflex/TheVTPyProject/wiki
