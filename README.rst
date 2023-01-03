@@ -29,7 +29,7 @@ srccircumflex@outlook.com</a>`.
 
 .. image:: ./_doc/building_side.png
     :align: right
-    :width: 150
+    :width: 80
 
 
 
