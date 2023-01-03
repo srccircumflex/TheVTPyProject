@@ -27,12 +27,6 @@ Reports, ideas and questions are very welcome and can be directed to
 :html:`<a href="mailto:srccircumflex@outlook.com?subject=The%20VT-Python%20Project">
 srccircumflex@outlook.com</a>`.
 
-.. image:: ./_doc/building_side.png
-    :align: right
-    :width: 80
-
-
-
 
 Presentations
 =============
