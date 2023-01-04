@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2022 Adrian F. Hoefflin [srccircumflex]
+# Copyright (c) 2023 Adrian F. Hoefflin [srccircumflex]
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, overload
 
 from vtframework.iodata.esccontainer import EscContainer
 from vtframework.iodata.c1ctrl import FsFpnF, CSI, OSC
@@ -189,50 +189,49 @@ class OSColorControl:
 
     @staticmethod
     @__STYLE_GATE__(OSC.new_nul)
-    def set_rel_color(color_slot: Literal['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'],
-                      new_color: str | tuple[int, int, int], *, bold_too: bool = True, bold_only: bool = False) -> OSC:
+    def set_rel_color(color_slot: Literal['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'] | int,
+                      new_color: str | tuple[int, int, int], *, bright_version: bool = False) -> OSC:
         """
-        Change color in slot [ and the bold version of it (default) | only the bold version ] to new color.
+        Change color in slot to new color.
 
-        :param color_slot: 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white'
+        :param color_slot: 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | int:<remainder of the 256-table>
         :param new_color: str(color name) | str(#rrggbb) | tuple(int(r), int(g), int(b))
-        :param bold_too: change the bold version too
-        :param bold_only: change only the bold version (bold_too ignored)
-        :return: OSC 4 ; { slot } ; { rgb } ST  |  OSC 4 ; { slot } ; { rgb } ; { slot } ; { rgb } ST
+        :param bright_version: change the bright version (ignored if the slot is specified as integer)
+        :return: OSC 4 ; { slot } ; { rgb } ST
         """
         rgb = OSColorControl._get_rgb(new_color)
-        color_n = OSColorControl._color_nums[color_slot]
-        if bold_only:
-            rgb = f"{color_n[1]};{rgb}"
-        elif bold_too:
-            rgb = f"{color_n[0]};{rgb};{color_n[1]};{rgb}"
+        if isinstance(color_slot, int):
+            rgb = f"{color_slot};{rgb}"
         else:
-            rgb = f"{color_n[0]};{rgb}"
+            color_n = OSColorControl._color_nums[color_slot]
+            if bright_version:
+                rgb = f"{color_n[1]};{rgb}"
+            else:
+                rgb = f"{color_n[0]};{rgb}"
         return OSC("4;", esc_string=rgb)
 
     @staticmethod
     @__STYLE_GATE__(OSC.new_nul)
     def reset_rel_color(
-            color_slot: Literal['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'] = None,
-            *, bold_too: bool = True, bold_only: bool = False
+            color_slot: Literal['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'] | int = None,
+            *, bright_version: bool = False
     ) -> OSC:
         """
-        Reset any color slots (default). |
-        Reset color in slot [ and the bold version of it (sec. default) | only the bold version ].
+        Reset any color slot (default) | color slot.
 
-        :param color_slot: OPTIONAL: 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white'
-        :param bold_too: reset the bold version too
-        :param bold_only: reset only the bold version (bold_too ignored)
-        :return: OSC 104 ; { slot } ST  |  OSC 104 ; { slot } ; { slot } ST  |  OSC 104 ST
+        :param color_slot: OPTIONAL: 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | int:<remainder of the 256-table>
+        :param bright_version: reset the bright version (ignored if the slot is specified as integer)
+        :return: OSC 104 ; { slot } ST  |  OSC 104 ST
         """
-        if color_slot:
-            color_n = OSColorControl._color_nums[color_slot]
-            if bold_only:
-                c = str(color_n[1])
-            elif bold_too:
-                c = f"{color_n[0]};{color_n[1]}"
+        if color_slot is not None:
+            if isinstance(color_slot, int):
+                c = str(color_slot)
             else:
-                c = str(color_n[0])
+                color_n = OSColorControl._color_nums[color_slot]
+                if bright_version:
+                    c = str(color_n[1])
+                else:
+                    c = str(color_n[0])
             return OSC("104;", esc_string=c)
         else:
             return OSC("104", esc_string='')

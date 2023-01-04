@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2022 Adrian F. Hoefflin [srccircumflex]
+# Copyright (c) 2023 Adrian F. Hoefflin [srccircumflex]
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -68,7 +68,7 @@ from vtframework.iodata import (
     BasicKeyComp,
     EscContainer,
     Mouse,
-    CursorShow
+    CursorShow, Meta
 )
 from vtframework.iodata.decpm import ScreenAlternateBuffer, MouseSendPressNRelease, DECPMHandler
 from vtframework.iosys.vtermios import mod_ansiin, mod_ansiout
@@ -94,6 +94,8 @@ MAIN_MENU_FOOTER = (
         SGRSeqs(FOOTER_FORE) + ": navigation  " +
         SGRSeqs(FOOTER_KEYS) + "RIGHT" + SGRSeqs(StyleResets.any) +
         SGRSeqs(FOOTER_FORE) + ": enter  " +
+        SGRSeqs(FOOTER_KEYS) + "META/ALT-m" + SGRSeqs(StyleResets.any) +
+        SGRSeqs(FOOTER_FORE) + ": mouse support  " +
         SGRSeqs(FOOTER_KEYS) + "<ESC>" + SGRSeqs(StyleResets.any) +
         SGRSeqs(FOOTER_FORE) + ": exit"
 )
@@ -105,7 +107,9 @@ SPECTRA_MENU_FOOTER = (
         SGRSeqs(FOOTER_KEYS) + "RIGHT" + SGRSeqs(StyleResets.any) +
         SGRSeqs(FOOTER_FORE) + ": enter  " +
         SGRSeqs(FOOTER_KEYS) + "LEFT" + SGRSeqs(StyleResets.any) +
-        SGRSeqs(FOOTER_FORE) + ": back"
+        SGRSeqs(FOOTER_FORE) + ": back  " +
+        SGRSeqs(FOOTER_KEYS) + "META/ALT-m" + SGRSeqs(StyleResets.any) +
+        SGRSeqs(FOOTER_FORE) + ": mouse support"
 )
 
 SPECTRUM_FOOTER = (
@@ -113,6 +117,8 @@ SPECTRUM_FOOTER = (
         SGRSeqs(FOOTER_FORE) + ": scrolling  " +
         SGRSeqs(FOOTER_KEYS) + "LEFT" + SGRSeqs(StyleResets.any) +
         SGRSeqs(FOOTER_FORE) + ": back  " +
+        SGRSeqs(FOOTER_KEYS) + "META/ALT-m" + SGRSeqs(StyleResets.any) +
+        SGRSeqs(FOOTER_FORE) + ": mouse support  " +
         SGRSeqs(FOOTER_KEYS) + "<ESC>" + SGRSeqs(StyleResets.any) +
         SGRSeqs(FOOTER_FORE) + ": main menu"
 )
@@ -122,7 +128,9 @@ BASE256_COLORS_FOOTER = (
         SGRSeqs(FOOTER_KEYS) + "[PAGE-]UP/DOWN" + SGRSeqs(StyleResets.any) +
         SGRSeqs(FOOTER_FORE) + ": scrolling  " +
         SGRSeqs(FOOTER_KEYS) + "LEFT" + SGRSeqs(StyleResets.any) +
-        SGRSeqs(FOOTER_FORE) + ": back"
+        SGRSeqs(FOOTER_FORE) + ": back  " +
+        SGRSeqs(FOOTER_KEYS) + "META/ALT-m" + SGRSeqs(StyleResets.any) +
+        SGRSeqs(FOOTER_FORE) + ": mouse support"
 )
 
 REL_COLORS_HEAD = "SGR-LOOKUP/Rel Colors"
@@ -130,7 +138,9 @@ REL_COLORS_FOOTER = (
         SGRSeqs(FOOTER_KEYS) + "[PAGE-]UP/DOWN" + SGRSeqs(StyleResets.any) +
         SGRSeqs(FOOTER_FORE) + ": scrolling  " +
         SGRSeqs(FOOTER_KEYS) + "LEFT" + SGRSeqs(StyleResets.any) +
-        SGRSeqs(FOOTER_FORE) + ": back"
+        SGRSeqs(FOOTER_FORE) + ": back  " +
+        SGRSeqs(FOOTER_KEYS) + "META/ALT-m" + SGRSeqs(StyleResets.any) +
+        SGRSeqs(FOOTER_FORE) + ": mouse support"
 )
 
 MODS_HEAD = "SGR-LOOKUP/SGR Mods"
@@ -138,7 +148,9 @@ MODS_FOOTER = (
         SGRSeqs(FOOTER_KEYS) + "[PAGE-]UP/DOWN" + SGRSeqs(StyleResets.any) +
         SGRSeqs(FOOTER_FORE) + ": scrolling  " +
         SGRSeqs(FOOTER_KEYS) + "LEFT" + SGRSeqs(StyleResets.any) +
-        SGRSeqs(FOOTER_FORE) + ": back"
+        SGRSeqs(FOOTER_FORE) + ": back  " +
+        SGRSeqs(FOOTER_KEYS) + "META/ALT-m" + SGRSeqs(StyleResets.any) +
+        SGRSeqs(FOOTER_FORE) + ": mouse support"
 )
 
 FIND_COLORS_HEAD = "SGR-LOOKUP/Find Named Colors"
@@ -148,7 +160,9 @@ FIND_COLORS_FOOTER = (
         SGRSeqs(FOOTER_KEYS) + "UP/DOWN" + SGRSeqs(StyleResets.any) +
         SGRSeqs(FOOTER_FORE) + ": history  " +
         SGRSeqs(FOOTER_KEYS) + "<ESC>" + SGRSeqs(StyleResets.any) +
-        SGRSeqs(FOOTER_FORE) + ": main menu    " +
+        SGRSeqs(FOOTER_FORE) + ": main menu  " +
+        SGRSeqs(FOOTER_KEYS) + "META/ALT-m" + SGRSeqs(StyleResets.any) +
+        SGRSeqs(FOOTER_FORE) + ": mouse support  " +
         SGRSeqs(FOOTER_INFO) + "[i]: re.IGNORECASE is set" + SGRSeqs(StyleResets.any)
 )
 
@@ -171,6 +185,8 @@ class SGRLookUp:
 
     prism = RGBTablesPrism(ROOT + "vtframework/iodata/_rgb")
     cursor_show: DECPMHandler
+    mouse_support: DECPMHandler = MouseSendPressNRelease()
+    mouse_val = False
 
     class Input:
         __buffer__: TextBuffer
@@ -337,6 +353,7 @@ class SGRLookUp:
                     65: lambda: self._move_menu_cursor(1),
                     0: lambda: self._move_page(1),
                 }.get(int(m), lambda: None)(),
+                self._mouse
             ),
             _PAGEKEY_SPECTRA_MENU: (
                 SGRSeqs(HEAD_GROUND + HEAD_FORE) + SPECTRA_MENU_HEAD,
@@ -385,6 +402,7 @@ class SGRLookUp:
                     0: lambda: self._move_page(1),
                     2: lambda: self._move_page(-1),
                 }.get(int(m), lambda: None)(),
+                self._mouse
             ),
             _PAGEKEY_SPECTRUM: [
                 "-*-",
@@ -421,6 +439,7 @@ class SGRLookUp:
                     65: lambda: self._move_content_cursor(1),
                     2: lambda: self._move_page(-1),
                 }.get(int(m), lambda: None)(),
+                self._mouse
                 ],
             _PAGEKEY_BASE256_COLORS: [
                 SGRSeqs(HEAD_GROUND + HEAD_FORE) + BASE256_COLORS_HEAD,
@@ -457,6 +476,7 @@ class SGRLookUp:
                     65: lambda: self._move_content_cursor(1),
                     2: lambda: self._move_page(-1),
                 }.get(int(m), lambda: None)(),
+                self._mouse
                 ],
             _PAGEKEY_REL_COLORS: [
                 SGRSeqs(HEAD_GROUND + HEAD_FORE) + REL_COLORS_HEAD,
@@ -493,6 +513,7 @@ class SGRLookUp:
                     65: lambda: self._move_content_cursor(1),
                     2: lambda: self._move_page(-1),
                 }.get(int(m), lambda: None)(),
+                self._mouse
                 ],
             _PAGEKEY_MODS: [
                 SGRSeqs(HEAD_GROUND + HEAD_FORE) + MODS_HEAD,
@@ -529,6 +550,7 @@ class SGRLookUp:
                     65: lambda: self._move_content_cursor(1),
                     2: lambda: self._move_page(-1),
                 }.get(int(m), lambda: None)(),
+                self._mouse
                 ],
             _PAGEKEY_FIND_COLORS: [
                 SGRSeqs(HEAD_GROUND + HEAD_FORE) + FIND_COLORS_HEAD,
@@ -565,8 +587,9 @@ class SGRLookUp:
                     65: lambda: self._move_content_cursor(1),
                     2: lambda: self._move_page(-1),
                 }.get(int(m), lambda: None)(),
+                self._mouse,
                 # input @ -1
-                self.Input(self.geo_watcher, SGRWrap("Color Name REGEX []:", PROMPT_FORE + PROMPT_GROUND) + " ")
+                self.Input(self.geo_watcher, SGRWrap("Color Name REGEX []:", PROMPT_FORE + PROMPT_GROUND) + " "),
             ],
         }
 
@@ -599,6 +622,7 @@ class SGRLookUp:
         self.input_modem.__binder__.bind(Ctrl("tab"), lambda o, _: self.pages[self.current_page][17](o))
         self.input_modem.__binder__.bind(NavKey(NavKey.K.SHIFT_TAB, NavKey.M.SHIFT), lambda o, _: self.pages[self.current_page][18](o))
         self.input_modem.__binder__.bind(Mouse, lambda o, _: self.pages[self.current_page][19](o))
+        self.input_modem.__binder__.bind(Meta("m"), lambda o, _: self.pages[self.current_page][20](o))
 
         def name_regex_action():
             inp: SGRLookUp.Input = self.pages[self.current_page][-1]
@@ -655,7 +679,7 @@ class SGRLookUp:
         spectra = []
         for c, v in Fore.__dict__.items():
             if c.endswith('_rel'):
-                spectra.append(EscSegment('%-12s' % c) + SGRWrap('%-18s' % v, v, INVERT))
+                spectra.append(EscSegment('%-12s' % c) + SGRWrap('%-18s' % str(v)[2], v, INVERT))
         return spectra
 
     @staticmethod
@@ -841,11 +865,17 @@ class SGRLookUp:
         self.cursor = max(0, min(len(body) - 1, self.cursor + n))
         self._menu_body_out(body)
 
+    def _mouse(self, *_):
+        self.mouse_val ^= True
+        if self.mouse_val:
+            self.mouse_support.highout()
+        else:
+            self.mouse_support.lowout()
+
     def mainloop(self):
         mod_ansiin()
         mod_ansiout()
         ScreenAlternateBuffer().highout()
-        MouseSendPressNRelease().highout()
         self.cursor_show = CursorShow()
         self._menu_body_out(self.pages[self.current_page][1])
         # sleep(1)

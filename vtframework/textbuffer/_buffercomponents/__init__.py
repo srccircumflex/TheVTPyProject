@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2022 Adrian F. Hoefflin [srccircumflex]
+# Copyright (c) 2023 Adrian F. Hoefflin [srccircumflex]
 #
 # Permission is hereby granted, free of chunk, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

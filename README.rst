@@ -2,12 +2,19 @@
 .. role:: html(raw)
    :format: html
 
+
+.. image:: ./_doc/pics/building_side.png
+    :width: 120
+    :alt: building_side.png
+
+
 The [ Video Terminal Python ] Project
 #####################################
 
 .. image:: ./_doc/VT-Python-Logo.png
     :align: center
     :width: 550
+    :alt: VT-Python-Logo.png
 
 Statute
 =======
@@ -37,6 +44,9 @@ SGR Lookup
 .. image:: ./_doc/gifs/SGRLookup.gif
     :align: center
     :width: 1050
+    :alt: SGRLookup.gif
+
+→ `demo sgr_lookup_tui`_
 
 Find in Buffer
 --------------
@@ -44,6 +54,9 @@ Find in Buffer
 .. image:: ./_doc/gifs/FindInBuffer.gif
     :align: center
     :width: 1050
+    :alt: FindInBuffer.gif
+
+→ `demo editor`_
 
 Insert Modes
 ------------
@@ -51,6 +64,9 @@ Insert Modes
 .. image:: ./_doc/gifs/InsertModes.gif
     :align: center
     :width: 1050
+    :alt: InsertModes.gif
+
+→ `demo editor`_
 
 Highlighter Demo
 ----------------
@@ -58,6 +74,7 @@ Highlighter Demo
 .. image:: ./_doc/gifs/HighlighterDemo.gif
     :align: center
     :width: 1050
+    :alt: HighlighterDemo.gif
 
 Tab Shifting
 ------------
@@ -65,6 +82,9 @@ Tab Shifting
 .. image:: ./_doc/gifs/TabShift.gif
     :align: center
     :width: 1050
+    :alt: TabShift.gif
+
+→ `demo editor`_
 
 Markers
 -------
@@ -72,8 +92,13 @@ Markers
 .. image:: ./_doc/gifs/Markers.gif
     :align: center
     :width: 1050
+    :alt: Markers.gif
 
+→ `demo editor`_
 
 
 .. _Issues: https://github.com/srccircumflex/TheVTPyProject/issues
 .. _Wiki: https://github.com/srccircumflex/TheVTPyProject/wiki
+
+.. _demo editor: ./_demo/editor.py
+.. _demo sgr_lookup_tui: ./_demo/sgr_lookup_tui.py

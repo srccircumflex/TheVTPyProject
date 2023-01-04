@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2022 Adrian F. Hoefflin [srccircumflex]
+# Copyright (c) 2023 Adrian F. Hoefflin [srccircumflex]
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -763,14 +763,15 @@ class ReplyOSColor(Reply):
         The index to which the value refers.
         
         - Palette colors:  (The real values of the palette colors are negated)
-            - ``0`` | ``-8`` : black | bolded black
-            - ``-1`` | ``-9`` : red | bolded red
-            - ``-2`` | ``-10`` : green | bolded green
-            - ``-3`` | ``-11`` : yellow | bolded yellow
-            - ``-4`` | ``-12`` : blue | bolded blue
-            - ``-5`` | ``-13`` : magenta | bolded magenta
-            - ``-6`` | ``-14`` : cyan | bolded cyan
-            - ``-7`` | ``-15`` : white | bolded white
+            - ``0`` | ``-8`` : black | bright black
+            - ``-1`` | ``-9`` : red | bright red
+            - ``-2`` | ``-10`` : green | bright green
+            - ``-3`` | ``-11`` : yellow | bright yellow
+            - ``-4`` | ``-12`` : blue | bright blue
+            - ``-5`` | ``-13`` : magenta | bright magenta
+            - ``-6`` | ``-14`` : cyan | bright cyan
+            - ``-7`` | ``-15`` : white | bright white
+            - ``-255 - 0``: remainder of the 256-color table
             
         - Environment colors:
             - ``10`` | ``15`` : foreground | Tektronix foreground
@@ -811,21 +812,21 @@ class ReplyOSColor(Reply):
     If a keyword is not specified, the comparison of this value is skipped and becomes True.
 
     :keyword TARGET: int: explicit | tuple[int, ...]: value contained
-    :keyword r: int: explicit value | tuple[int, int]: value in range
-    :keyword g: int: explicit value | tuple[int, int]: value in range
-    :keyword b: int: explicit value | tuple[int, int]: value in range
+    :keyword R: int: explicit value | tuple[int, int]: value in range
+    :keyword G: int: explicit value | tuple[int, int]: value in range
+    :keyword B: int: explicit value | tuple[int, int]: value in range
 
     :raises InvalidReplyError:
     """
     class ReplyValues(NamedTuple):
         TARGET: int  # if <= 0 == rel
-        r: int
-        g: int
-        b: int
+        R: int
+        G: int
+        B: int
         # TARGET: int | tuple | None
-        # r: int | tuple | None
-        # g: int | tuple | None
-        # b: int | tuple | None
+        # R: int | tuple | None
+        # G: int | tuple | None
+        # B: int | tuple | None
 
         def __eq__(self, other: ReplyOSColor.ReplyValues):
             ref: tuple
@@ -839,7 +840,7 @@ class ReplyOSColor(Reply):
                 return False
             elif isinstance(self.TARGET, int) and other.TARGET != self.TARGET:
                 return False
-            for ref, otr in zip((self.r, self.g, self.b), (other.r, other.g, other.b)):
+            for ref, otr in zip((self.R, self.G, self.B), (other.R, other.G, other.B)):
                 if ref is not None and not comp():
                     return False
             return True
@@ -852,7 +853,7 @@ class ReplyOSColor(Reply):
 
     @overload
     def __init__(self, *, TARGET: int | tuple[int, ...] = None,
-                 r: int | tuple[int, int] = None, g: int | tuple[int, int] = None, b: int | tuple[int, int] = None):
+                 R: int | tuple[int, int] = None, G: int | tuple[int, int] = None, B: int | tuple[int, int] = None):
         ...
 
     def __init__(self, _seqs: str = None, **_kwargs):
@@ -867,10 +868,10 @@ class ReplyOSColor(Reply):
             r, g, b = int(r[:2], 16), int(g[:2], 16), int(b[:2], 16)
             if params[0] == "4":
                 self.REPLY_VALUES: ReplyOSColor.ReplyValues = ReplyOSColor.ReplyValues(
-                    TARGET=-int(params[1]), r=r, g=g, b=b)
+                    TARGET=-int(params[1]), R=r, G=g, B=b)
             else:
                 self.REPLY_VALUES: ReplyOSColor.ReplyValues = ReplyOSColor.ReplyValues(
-                    TARGET=int(params[0]), r=r, g=g, b=b)
+                    TARGET=int(params[0]), R=r, G=g, B=b)
         except Exception as e:
             raise InvalidReplyError(self, _seqs, e)
 

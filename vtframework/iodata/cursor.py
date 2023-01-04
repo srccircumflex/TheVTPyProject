@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2022 Adrian F. Hoefflin [srccircumflex]
+# Copyright (c) 2023 Adrian F. Hoefflin [srccircumflex]
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -215,7 +215,7 @@ class CursorNavigate:
         return CSI(f'{n}C')
 
     @staticmethod
-    def back(n: int = 1) -> str:
+    def back(n: int = 1) -> CSI:
         """:return: CSI { n } D"""
         return CSI(f'{n}D')
 

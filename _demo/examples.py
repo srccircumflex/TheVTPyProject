@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2022 Adrian F. Hoefflin [srccircumflex]
+# Copyright (c) 2023 Adrian F. Hoefflin [srccircumflex]
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -73,23 +73,175 @@ def echo_routing():
     router.start(daemon=False)
 
 
-def test_oscolor_request():
+class OSColorTests:
 
-    from vtframework.iodata import RequestOSColor
-    from vtframework.io import Input
-    from vtframework.iosys.vtermios import mod_ansiout
+    from vtframework.iodata.replies import ReplyOSColor
 
-    mod_ansiout()
+    @staticmethod
+    def request_color_slots(print_: bool = True) -> dict[str, str | ReplyOSColor]:
 
-    with Input() as input_:
+        from vtframework.iodata.requests import RequestOSColor
+        from vtframework.iodata.replies import ReplyOSColor
+        from vtframework.io import Input
+        from vtframework.iosys.vtermios import mod_ansiout, mod_ansiin
 
-        RequestOSColor.rel("red").out()
+        mod_ansiout()
+        mod_ansiin()
 
-        reply = input_.read(block=False, smoothness=.02, flush_io=True)
+        color_slot_replies: dict[str, str | ReplyOSColor] = {
+            "*env*fore": "",
+            "*env*ground": "",
+            "|env|cursor": "",
+            "black": "",
+            "red": "",
+            "green": "",
+            "yellow": "",
+            "blue": "",
+            "magenta": "",
+            "cyan": "",
+            "white": "",
+            "#black": "",
+            "#red": "",
+            "#green": "",
+            "#yellow": "",
+            "#blue": "",
+            "#magenta": "",
+            "#cyan": "",
+            "#white": "",
+        }
+        with Input() as input_:
 
-    print(repr(reply))
+            for slot in color_slot_replies:
+                if slot[0] == "*":
+                    RequestOSColor.environment(fore=slot.endswith("fore")).out()
+                elif slot[0] == "|":
+                    RequestOSColor.cursor().out()
+                elif slot[0] == "#":
+                    RequestOSColor.rel(slot[1:], bright_version=True).out()
+                else:
+                    RequestOSColor.rel(slot).out()
+                color_slot_replies[slot] = input_.read(block=False, smoothness=.04, flush_io=True)
 
-    return bool(reply)
+        if print_:
+            for i in color_slot_replies.items():
+                print("%-16s%r" % i)
+
+        return color_slot_replies
+
+    @staticmethod
+    def set_color_slots_by_replies(origins: dict[str, str | ReplyOSColor]) -> None:
+
+        from vtframework.iodata.os import OSColorControl
+        from vtframework.iosys.vtermios import mod_ansiout, mod_ansiin
+
+        mod_ansiout()
+        mod_ansiin()
+
+        for slot in origins:
+            if color := origins[slot]:
+                if slot[0] == "*":
+                    if slot.endswith("fore"):
+                        OSColorControl.set_environment_color(fore=(color['r'], color['g'], color['b'])).out()
+                    else:
+                        OSColorControl.set_environment_color(back=(color['r'], color['g'], color['b'])).out()
+                elif slot[0] == "|":
+                    OSColorControl.set_cursor_color((color['r'], color['g'], color['b'])).out()
+                else:
+                    OSColorControl.set_rel_color(slot, (color['r'], color['g'], color['b'])).out()
+
+    @staticmethod
+    def sgr_hypnotising(iterations: int = 3, frame_timeout: float = .01,
+                        colors: tuple | list = (
+                            "MediumSpringGreen",
+                            "#CCFF00",
+                            (12, 234, 22),
+                            "DeepPink1",
+                            "LightGoldenrodYellow",
+                            (12, 234, 22),
+                            "MediumOrchid",
+                            "#0035FF",
+                            "#FF2900",
+                            (12, 234, 22),
+                        )
+                        ):
+
+        from time import sleep
+        import atexit
+        from random import shuffle, randint
+
+        from vtframework.iodata.decpm import ScreenAlternateBuffer
+        from vtframework.iodata.cursor import CursorNavigate, CursorStyle
+        from vtframework.iodata.os import OSColorControl, WindowManipulation
+        from vtframework.iosys.vtermios import mod_ansiout, mod_ansiin
+        from _demo.sgr_lookup_tui import SGRLookUp
+
+        mod_ansiout()
+        mod_ansiin()
+
+        colors = list(colors)
+        shuffle(colors)
+        colors_max_index = len(colors) - 1
+
+
+        def change_colors():
+            _ = OSColorControl.set_environment_color(
+                fore=colors[randint(0, colors_max_index)],
+                back=colors[randint(0, colors_max_index)]
+            ).out()
+            for slot in (
+                    "black",
+                    "red",
+                    "green",
+                    "yellow",
+                    "blue",
+                    "magenta",
+                    "cyan",
+                    "white"
+            ):
+                _ = OSColorControl.set_rel_color(slot, colors[randint(0, colors_max_index)]).out()
+            sleep(frame_timeout)
+
+        def main_loop(iterations):
+            for cur_col in colors[:iterations]:
+                _ = OSColorControl.set_cursor_color(cur_col).out()
+                CursorNavigate.position(13, 4).out()
+                for i in range(1, 9):
+                    change_colors()
+                    if i % 2:
+                        for _ in range(i * 2):
+                            _ = CursorNavigate.forward().out()
+                            change_colors()
+                        for _ in range(i):
+                            _ = CursorNavigate.down().out()
+                            change_colors()
+                    else:
+                        for _ in range(i * 2):
+                            _ = CursorNavigate.back().out()
+                            change_colors()
+                        for _ in range(i):
+                            _ = CursorNavigate.up().out()
+                            change_colors()
+
+        try:
+            alt_buffer = ScreenAlternateBuffer()
+            alt_buffer.highout()
+            _ = CursorStyle.steady_block().out()
+            _ = atexit.register(lambda *_: CursorStyle.blinking_block().out())
+            _ = CursorNavigate.position().out()
+            for rcs in SGRLookUp.lookup_rel():
+                print(rcs)
+            sleep(2)
+            _ = WindowManipulation.resize(30, 10).out()
+            main_loop(iterations)
+        finally:
+            _ = OSColorControl.reset_cursor_color().out()
+            _ = OSColorControl.reset_environment_color().out()
+            _ = OSColorControl.reset_rel_color().out()
+            _ = CursorNavigate.position(0, 9).out()
+            sleep(.2)
+            _ = WindowManipulation.resize(80, 24).out()
+            sleep(2)
+            alt_buffer.lowout()
 
 
 def visual_interpreters():
@@ -135,8 +287,10 @@ def visual_interpreters():
 
 
 if __name__ == "__main__":
-    pass
+    from sys import argv
+    if code := str().join(a + ' ' for a in argv[1:]):
+        exec(code[:-1])
     #echo_routing()
-    #test_oscolor_request()
+    #test_oscolor()
     #visual_interpreters()
 

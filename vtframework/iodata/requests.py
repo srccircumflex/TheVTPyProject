@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2022 Adrian F. Hoefflin [srccircumflex]
+# Copyright (c) 2023 Adrian F. Hoefflin [srccircumflex]
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -239,21 +239,24 @@ class RequestOSColor:
     }
 
     @staticmethod
-    def rel(color_slot: Literal['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'],
-            *, bold_version: bool = False) -> OSC:
+    def rel(color_slot: Literal['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'] | int,
+            *, bright_version: bool = False) -> OSC:
         """
         Request color slot:
             - OSC 4 ; slot ; ? ST
             -> OSC 4 ; slot ; rgb:rrrr/gggg/bbbb ST  (:class:`replies.ReplyOSColor`)
 
-        :param color_slot: 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white'
-        :param bold_version: request the bold version
+        :param color_slot: 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | int:<remainder of the 256-table>
+        :param bright_version: request the bright version (ignored if the slot is specified as integer)
         """
-        color_n = RequestOSColor._color_nums[color_slot]
-        if bold_version:
-            return OSC("4;", esc_string=f"{color_n[1]};?")
+        if isinstance(color_slot, int):
+            return OSC("4;", esc_string=f"{color_slot};?")
         else:
-            return OSC("4;", esc_string=f"{color_n[0]};?")
+            color_n = RequestOSColor._color_nums[color_slot]
+            if bright_version:
+                return OSC("4;", esc_string=f"{color_n[1]};?")
+            else:
+                return OSC("4;", esc_string=f"{color_n[0]};?")
 
     @staticmethod
     def environment(*, fore: bool = False, Tektronix: bool = False) -> OSC:
