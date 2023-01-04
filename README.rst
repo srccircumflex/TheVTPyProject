@@ -3,7 +3,7 @@
    :format: html
 
 
-.. image:: ./_doc/pics/building_side.png
+.. .. image:: ./_doc/pics/building_side.png
     :width: 120
     :alt: building_side.png
 
