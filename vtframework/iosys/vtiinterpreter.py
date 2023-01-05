@@ -320,6 +320,7 @@ class _BaseInterpreter:
         - :class:`MouseInterpreter`
         - :class:`FsFpnFInterpreter`
         - :class:`Utf8Interpreter`
+        - :class:`BrPasteMInterpreter`
     """
     finals: Iterable[int | tuple[int, int]] = ((0x30, 0x7e), 0x20)  # 0–9:;<=>?@A–Z[\]^_`a–z{|}~ SP
 
