@@ -4,7 +4,7 @@
 
 
 .. .. image:: ./_doc/pics/building_side.png
-    :width: 121
+    :width: 120
     :alt: building_side.png
 
 
