@@ -1067,6 +1067,7 @@ class MainInterpreter(_BaseInterpreter):
         - :class:`MouseInterpreter`
         - :class:`FsFpnFInterpreter`
         - :class:`Utf8Interpreter`
+        - :class:`BrPasteMInterpreter`
 
         For binding to all types, ``"any"`` can be specified.
 
