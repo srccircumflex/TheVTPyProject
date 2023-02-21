@@ -246,9 +246,10 @@ class _FKeyInterpreter:
         0x5a: lambda _mod=2: NavKey(NavKey.K.SHIFT_TAB, _mod),  # Z
     }
 
-    def __new__(cls, _seqs: bytes, _introducer: bytes):
+    @staticmethod
+    def get(_seqs: bytes, _introducer: bytes):
         try:
-            if _seqs[-1] not in cls.KEY_CHR_N1[_introducer]:
+            if _seqs[-1] not in _FKeyInterpreter.KEY_CHR_N1[_introducer]:
                 return False
             if _seqs[-2:].startswith(b"'"):  # DECDC
                 return False
@@ -261,46 +262,73 @@ class _FKeyInterpreter:
                 return ModKey(int(values[2]), int(values[1]))
             if _seqs[-1] in (0x7a, 0x7e):  # z ~
                 if len(values) == 2:
-                    return cls.KEY_TILz[values[0]](int(values[1]))
-                return cls.KEY_TILz[values[0]]()
+                    return _FKeyInterpreter.KEY_TILz[values[0]](int(values[1]))
+                return _FKeyInterpreter.KEY_TILz[values[0]]()
             if len(values) == 2:
-                return cls.KEY_CAP[_seqs[-1]](int(values[1]))
+                return _FKeyInterpreter.KEY_CAP[_seqs[-1]](int(values[1]))
             if len(_seqs) != 1:
                 return False
-            return cls.KEY_CAP[_seqs[-1]]()
+            return _FKeyInterpreter.KEY_CAP[_seqs[-1]]()
         except (ValueError, KeyError):
             return False
 
 
-def _ReplyInterpreter(_seqs: bytes, _introducer: bytes):
-    try:
-        if _introducer == b'[':
-            __seqs = EscSegment.new_raw('[', _seqs.decode())
-            if _seqs[0] == 63:  # ?
-                if _seqs[-1] == 99:  # c
-                    return ReplyDA(__seqs)
-                if _seqs[-1] == 82:  # R
+class _ReplyInterpreter:
+
+    class CSIReplies:
+        introducer = b'['
+
+        DA_CP_DECPM_param0 = 63  # ?
+        DA_fin = 99  # c
+        CP_fin = 82  # R
+        DECPM_fin = b'$y'
+
+        TIC_param0 = 62  # >
+        TIC_fin = 99  # c
+
+        WinReply_fin = 116  # t
+
+    class DCSReplies:
+        introducer = b'P'
+
+        CKS_param_hint = b'!~'
+
+        TID_param1 = 33  # !
+
+    class OSCReplies:
+        introducer = b']'
+
+    @staticmethod
+    def get(_seqs: bytes, _introducer: bytes):
+
+        try:
+            if _introducer == _ReplyInterpreter.CSIReplies.introducer:
+                __seqs = EscSegment.new_raw('[', _seqs.decode())
+                if _seqs[0] == _ReplyInterpreter.CSIReplies.DA_CP_DECPM_param0:
+                    if _seqs[-1] == _ReplyInterpreter.CSIReplies.DA_fin:
+                        return ReplyDA(__seqs)
+                    if _seqs[-1] == _ReplyInterpreter.CSIReplies.CP_fin:
+                        return ReplyCP(__seqs)
+                    if _seqs[-2:] == _ReplyInterpreter.CSIReplies.DECPM_fin:
+                        return ReplyDECPM(__seqs)
+                elif _seqs[0] == _ReplyInterpreter.CSIReplies.TIC_param0:
+                    if _seqs[-1] == _ReplyInterpreter.CSIReplies.TIC_fin:
+                        return ReplyTIC(__seqs)
+                elif _seqs[-1] == _ReplyInterpreter.CSIReplies.CP_fin:
                     return ReplyCP(__seqs)
-                if _seqs[-2:] == b'$y':
-                    return ReplyDECPM(__seqs)
-            elif _seqs[0] == 62:  # >
-                if _seqs[-1] == 99:  # c
-                    return ReplyTIC(__seqs)
-            elif _seqs[-1] == 82:  # R
-                return ReplyCP(__seqs)
-            elif _seqs[-1] == 116:  # t
-                return ReplyWindow(__seqs)
-        elif _introducer == b'P':
-            __seqs = EscSegment.new_raw(_seqs.decode())
-            if b'!~' in _seqs:
-                return ReplyCKS(__seqs)
-            elif _seqs[1] == 33:  # !
-                return ReplyTID(__seqs)
-        elif _introducer == b']':
-            __seqs = EscSegment.new_raw(']', _seqs.decode())
-            return ReplyOSColor(__seqs)
-    except InvalidReplyError:
-        return False
+                elif _seqs[-1] == _ReplyInterpreter.CSIReplies.WinReply_fin:
+                    return ReplyWindow(__seqs)
+            elif _introducer == _ReplyInterpreter.DCSReplies.introducer:
+                __seqs = EscSegment.new_raw(_seqs.decode())
+                if _ReplyInterpreter.DCSReplies.CKS_param_hint in _seqs:
+                    return ReplyCKS(__seqs)
+                elif _seqs[1] == _ReplyInterpreter.DCSReplies.TID_param1:
+                    return ReplyTID(__seqs)
+            elif _introducer == _ReplyInterpreter.OSCReplies.introducer:
+                __seqs = EscSegment.new_raw(']', _seqs.decode())
+                return ReplyOSColor(__seqs)
+        except InvalidReplyError:
+            return False
 
 
 class _BaseInterpreter:
@@ -341,11 +369,14 @@ class _BaseInterpreter:
     def buffer(self, val: bytes) -> None:
         self._buffer = val
 
-    def __init__(self, _t: Callable[[bytes], Key | Char | EscSegment], _b: bytes, _i: bytes):
+    def __init__(self, _t: Callable[[bytes], Key | Char | EscSegment]):
         self.target = _t
+        self.bound = self.bound_final = lambda *_: None
+
+    def __call__(self, _b: bytes, _i: bytes) -> _BaseInterpreter:
         self._buffer = self._b = _b
         self._introducer = _i
-        self.bound = self.bound_final = lambda *_: None
+        return self
 
     def bind_to_char(self, __f: Callable[[_BaseInterpreter, bytes], Any]) -> _BaseInterpreter:
         self.bound = __f
@@ -389,12 +420,17 @@ class _FinalCount(int):
 class Utf8Interpreter(_BaseInterpreter):
     """:class:`UTF8`-Sequence Interpreter"""
 
-    def __init__(self, _startbyte: bytes, _t: Callable[[bytes], UTF8 | Meta] = lambda b: UTF8(b.decode())):
-        _BaseInterpreter.__init__(self, _t, _startbyte, b'')
+    def __init__(self):
+        _BaseInterpreter.__init__(self, None)
+        
+    def __call__(self, _startbyte: bytes, _t: Callable[[bytes], UTF8 | Meta] = lambda b: UTF8(b.decode())) -> Utf8Interpreter:
+        super().__call__(_startbyte, b'')
+        self.target = _t
         for n, r in enumerate((((0xc2, 0xdf),), ((0xe0, 0xef),), ((0xf0, 0xf4),)), 1):
             if isFinal(_startbyte, r):
                 self.finals = (_FinalCount(n),)
                 break
+        return self
 
 
 class MouseInterpreter(_BaseInterpreter):
@@ -428,17 +464,22 @@ class MouseInterpreter(_BaseInterpreter):
     x: int | tuple | None
     y: int | tuple | None
 
-    def __init__(self, _mode: bytes):
-        _BaseInterpreter.__init__(self, None, b'', b'[' + _mode)
+    def __init__(self):
+        _BaseInterpreter.__init__(self, None)
+
+    def __call__(self, _mode: bytes) -> MouseInterpreter:
+        self._introducer = self._buffer = self._b = b''
+        self._introducer = b'[' + _mode
         self.finals, self.interpret = {
-            b'M': ((_FinalCount(3),), lambda _char: self.interpret_M(_char)),
-            b't': ((_FinalCount(2),), lambda _char: self.interpret_t(_char)),
-            b'T': ((_FinalCount(6),), lambda _char: self.interpret_T(_char)),
-            b'<': ((0x6d, 0x4d), lambda _char: self.interpret_SGR(_char))  # mM
+            b'M': ((_FinalCount(3),), self.interpret_M),
+            b't': ((_FinalCount(2),), self.interpret_t),
+            b'T': ((_FinalCount(6),), self.interpret_T),
+            b'<': ((0x6d, 0x4d), self.interpret_SGR)  # mM
         }[_mode]
         self.button = None
         self.y = None
         self.x = None
+        return self
 
     def _final(self, _chr: bytes):
         if isFinal(_chr, self.finals):
@@ -523,8 +564,12 @@ class BrPasteMInterpreter(_BaseInterpreter):
     """
 
     def __init__(self):
-        _BaseInterpreter.__init__(self, lambda b: Pasted(b.decode()), b'', b'[200~')
+        _BaseInterpreter.__init__(self, lambda b: Pasted(b.decode()))
         self.finals = (0x7e,)  # ~
+        
+    def __call__(self) -> BrPasteMInterpreter:
+        super().__call__(b'', b'[200~')
+        return self
 
     def __lshift__(self, _char: bytes) -> Union[BrPasteMInterpreter, Pasted]:
         self._buffer += _char
@@ -544,24 +589,30 @@ class CtrlSeqsInterpreter(_BaseInterpreter):
     Bracketed paste forwarded to :class:`BrPasteMInterpreter`.
     """
 
-    def __init__(self):
-        _BaseInterpreter.__init__(self, lambda b: CSI(b.decode()), b'', b'[')
+    MouseInterpreter: MouseInterpreter
+    BrPasteMInterpreter: BrPasteMInterpreter
+
+    def __init__(self, mouseinterpreter: MouseInterpreter, brpasteminterpreter: BrPasteMInterpreter):
+        _BaseInterpreter.__init__(self, lambda b: CSI(b.decode()))
         self.finals = ((0x40, 0x7e),)  # @A–Z[\]^_`a–z{|}~
         self._MOUSE = b'MtT<'
+        super().__call__(b'', b'[')
+        self.MouseInterpreter = mouseinterpreter
+        self.BrPasteMInterpreter = brpasteminterpreter
 
     def __lshift__(self, _char: bytes
                    ) -> Union[CtrlSeqsInterpreter, MouseInterpreter, BrPasteMInterpreter, Key, Reply, CSI, UnknownESC]:
         if not self._buffer and _char in self._MOUSE:
             self.bound(self, _char)
-            return MouseInterpreter(_char).bind(self.bound, self.bound_final)
+            return self.MouseInterpreter.__call__(_char)
         self._buffer += _char
         if isFinal(_char, self.finals):
             if self._buffer == b'200~':
                 self._reset()
-                return BrPasteMInterpreter().bind(self.bound, self.bound_final)
-            if fkey := _FKeyInterpreter(self._buffer, b'['):
+                return self.BrPasteMInterpreter.__call__()
+            if fkey := _FKeyInterpreter.get(self._buffer, b'['):
                 return self._fin(fkey, _char)
-            if rep := _ReplyInterpreter(self._buffer, b'['):
+            if rep := _ReplyInterpreter.get(self._buffer, b'['):
                 return self._fin(rep, _char)
             return self._fin(self.target(self._buffer), _char)
         self.bound(self, _char)
@@ -571,9 +622,13 @@ class CtrlSeqsInterpreter(_BaseInterpreter):
 class FsFpnFInterpreter(_BaseInterpreter):
     """Interpreter for the less complex Fs-, Fp- and nF- Escape Sequences (:class:`FsFpnF`)."""
 
-    def __init__(self, _b):
-        _BaseInterpreter.__init__(self, lambda b: FsFpnF(b.decode()), _b, _b)
+    def __init__(self):
+        _BaseInterpreter.__init__(self, lambda b: FsFpnF(b.decode()))
         self.finals = ((0x30, 0x7e),)  # 0–9:;<=>?@A–Z[\]^_`a–z{|}~
+        
+    def __call__(self, _b) -> FsFpnFInterpreter:
+        super().__call__(_b, _b)
+        return self
 
     def __lshift__(self, _char: bytes) -> Union[FsFpnFInterpreter, FsFpnF, UnknownESC]:
         self._buffer += _char
@@ -594,9 +649,10 @@ class SingeShiftInterpreter(_BaseInterpreter):
         - :class:`SingeShift3Interpreter`
     """
 
-    def __init__(self, _t, _b, _i):
-        _BaseInterpreter.__init__(self, _t, _b, _i)
+    def __init__(self, _t):
+        _BaseInterpreter.__init__(self, _t)
         self.finals = ((0x40, 0x7e), 0x20)  # @A–Z[\]^_`a–z{|}~ SP
+        self.__call__(b'N', b'')
 
 
 class SingeShift3Interpreter(SingeShiftInterpreter):
@@ -608,14 +664,15 @@ class SingeShift3Interpreter(SingeShiftInterpreter):
     """
 
     def __init__(self):
-        SingeShiftInterpreter.__init__(self, lambda b: SS3(b.decode()), b'', b'O')
+        SingeShiftInterpreter.__init__(self, lambda b: SS3(b.decode()))
+        self.__call__(b'', b'O')
 
     def __lshift__(self, _char: bytes) -> Union[SingeShift3Interpreter, Key, SS3, UnknownESC]:
         self._buffer += _char
         if isFinal(_char, self.finals):
             if key := _SS3_KEYS.get(self._buffer):
                 return self._fin(key, _char)
-            if fkey := _FKeyInterpreter(self._buffer, b'O'):
+            if fkey := _FKeyInterpreter.get(self._buffer, b'O'):
                 return self._fin(fkey, _char)
             return self._fin(self.target(self._buffer), _char)
         self.bound(self, _char)
@@ -647,8 +704,8 @@ class BaseInterpreterFinalST(_BaseInterpreter):
             if item == 27:
                 self._esc_match = True
 
-    def __init__(self, _t, _b, _i):
-        _BaseInterpreter.__init__(self, _t, _b, _i)
+    def __init__(self, _t):
+        _BaseInterpreter.__init__(self, _t)
         self.finals = (self._Final(),)
 
 
@@ -659,12 +716,13 @@ class DevCtrlStrInterpreter(BaseInterpreterFinalST):
     """
 
     def __init__(self):
-        BaseInterpreterFinalST.__init__(self, lambda b: DCS(esc_string=b[:-2].decode()), b'', b'P')
+        BaseInterpreterFinalST.__init__(self, lambda b: DCS(esc_string=b[:-2].decode()))
+        self.__call__(b'', b'P')
 
     def __lshift__(self, _char: bytes) -> Union[DevCtrlStrInterpreter, Reply, DCS, UnknownESC]:
         self._buffer += _char
         if isFinal(_char, self.finals):
-            if rep := _ReplyInterpreter(self._buffer, b'P'):
+            if rep := _ReplyInterpreter.get(self._buffer, b'P'):
                 return self._fin(rep, _char)
             return self._fin(self.target(self._buffer), _char)
         self.bound(self, _char)
@@ -678,12 +736,13 @@ class OSCmdInterpreter(BaseInterpreterFinalST):
     """
 
     def __init__(self):
-        BaseInterpreterFinalST.__init__(self, lambda b: OSC(esc_string=b[:-2].decode()), b'', b']')
+        BaseInterpreterFinalST.__init__(self, lambda b: OSC(esc_string=b[:-2].decode()))
+        self.__call__(b'', b']')
 
     def __lshift__(self, _char: bytes) -> Union[OSCmdInterpreter, OSC, UnknownESC]:
         self._buffer += _char
         if isFinal(_char, self.finals):
-            if rep := _ReplyInterpreter(self._buffer, b']'):
+            if rep := _ReplyInterpreter.get(self._buffer, b']'):
                 return self._fin(rep, _char)
             return self._fin(self.target(self._buffer), _char)
         self.bound(self, _char)
@@ -700,7 +759,8 @@ class AppInterpreter(BaseInterpreterFinalST):
     """
 
     def __init__(self, _i: Literal[b'X', b'^', b'_']):
-        BaseInterpreterFinalST.__init__(self, lambda b: APP(_i.decode(), esc_string=b[1:-2].decode()), b'', _i)
+        BaseInterpreterFinalST.__init__(self, lambda b: APP(_i.decode(), esc_string=b[1:-2].decode()))
+        self.__call__(b'', _i)
 
     def __lshift__(self, _char: bytes) -> Union[AppInterpreter, APP, UnknownESC]:
         self._buffer += _char
@@ -894,13 +954,15 @@ class MainInterpreter(_BaseInterpreter):
     .. _`microsoft/console-virtual-terminal-sequences/input-sequences`: https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#input-sequences
     """
 
-    _Interpreters: dict[bytes,
-                        SingeShiftInterpreter
-                        | DevCtrlStrInterpreter
-                        | AppInterpreter
-                        | OSCmdInterpreter
-                        | CtrlSeqsInterpreter
-                        | SingeShift3Interpreter]
+    _Esc_Interpreters: dict[bytes,
+                            SingeShiftInterpreter
+                            | DevCtrlStrInterpreter
+                            | AppInterpreter
+                            | OSCmdInterpreter
+                            | CtrlSeqsInterpreter
+                            | SingeShift3Interpreter]
+    _UTF8_Interpreter: Utf8Interpreter
+    _FsFpnF_Interpreter: FsFpnFInterpreter
 
     PROTECTED_INTRODUCERS: _ProtectedIntroducers
 
@@ -909,27 +971,28 @@ class MainInterpreter(_BaseInterpreter):
     SPACE_TARGETS: _SpaceTargets
 
     bound_esc: Callable[[], Any]
-    bound_utf: Callable[[_BaseInterpreter, bytes], Any]
-    bound_final_utf: Callable[[_BaseInterpreter, bytes], Any]
     bound_esc_intro: Callable[[bytes], Any]
 
     esc_sequences: bool
 
     def __init__(self, esc_sequences: bool = True):
-        _BaseInterpreter.__init__(self, None, b'', b'')
+        _BaseInterpreter.__init__(self, None)
+        super().__call__(b'', b'')
         self.esc_sequences = esc_sequences
         self.PROTECTED_INTRODUCERS = _ProtectedIntroducers()
         self.ACCEPTED_META_KEYS = _AcceptedMetaKeys()
         self.SPACE_TARGETS = _SpaceTargets()
-        self._Interpreters = {b'N': SingeShiftInterpreter(lambda b: Fe(b.decode()), b'N', b''),
-                              b'P': DevCtrlStrInterpreter(),
-                              b'X': AppInterpreter(b'X'),
-                              b']': OSCmdInterpreter(),
-                              b'^': AppInterpreter(b'^'),
-                              b'_': AppInterpreter(b'_'),
-                              b'[': CtrlSeqsInterpreter(),
-                              b'O': SingeShift3Interpreter()}
-        self.bound_esc = self.bound_utf = self.bound_final_utf = self.bound_esc_intro = lambda *_: None
+        self._Esc_Interpreters = {b'N': SingeShiftInterpreter(lambda b: Fe(b.decode())),
+                                  b'P': DevCtrlStrInterpreter(),
+                                  b'X': AppInterpreter(b'X'),
+                                  b']': OSCmdInterpreter(),
+                                  b'^': AppInterpreter(b'^'),
+                                  b'_': AppInterpreter(b'_'),
+                                  b'[': CtrlSeqsInterpreter(MouseInterpreter(), BrPasteMInterpreter()),
+                                  b'O': SingeShift3Interpreter()}
+        self._UTF8_Interpreter = Utf8Interpreter()
+        self._FsFpnF_Interpreter = FsFpnFInterpreter()
+        self.bound_esc = self.bound_esc_intro = lambda *_: None
 
     def __call__(self, _in: bytes) -> Ctrl | ASCII | DelIns | Space | Utf8Interpreter | MainInterpreter:
 
@@ -951,7 +1014,7 @@ class MainInterpreter(_BaseInterpreter):
 
         # Utf8 start byte
         if isFinal(_in, ((0xc2, 0xf4),)):
-            utfi = Utf8Interpreter(_in).bind(self.bound_utf, self.bound_final_utf)
+            utfi = self._UTF8_Interpreter.__call__(_in)
             utfi.bound(utfi, _in)
             return utfi
 
@@ -1003,8 +1066,7 @@ class MainInterpreter(_BaseInterpreter):
 
                 # Utf8 start byte
                 if isFinal(_introducer, ((0xc2, 0xf4),)):
-                    return Utf8Interpreter(_introducer, lambda _b: Meta(_b.decode())
-                                           ).bind(self.bound_utf, self.bound_final_utf)
+                    return self._UTF8_Interpreter.__call__(_introducer, lambda _b: Meta(_b.decode()))
 
                 return Meta(_introducer)
 
@@ -1022,9 +1084,9 @@ class MainInterpreter(_BaseInterpreter):
             pass
 
         if isFsFpnFIntro(_introducer.decode(), False):
-            return FsFpnFInterpreter(_introducer)
+            return self._FsFpnF_Interpreter.__call__(_introducer)
 
-        return self._Interpreters.get(_introducer, _BaseInterpreter(self._getunknown, _introducer, b''))
+        return self._Esc_Interpreters.get(_introducer, _BaseInterpreter(self._getunknown).__call__(_introducer, b''))
 
     def bind_esc(self, __f: Callable[[], Any] = lambda *_: None) -> None:
         """Bind the execution of function `__f` to the occurrence of an introductory escape character."""
@@ -1047,7 +1109,9 @@ class MainInterpreter(_BaseInterpreter):
                                                     | AppInterpreter
                                                     | OSCmdInterpreter
                                                     | CtrlSeqsInterpreter
-                                                    | SingeShift3Interpreter] | Literal['any'],
+                                                    | SingeShift3Interpreter
+                                                    | BrPasteMInterpreter
+                                                    | MouseInterpreter] | Literal['any'],
                             to_char: Literal['param', 'p', 'final', 'f', 'any'],
                             __f: Callable[[_BaseInterpreter, bytes], Any] = lambda *_: None) -> None:
         """
@@ -1077,22 +1141,50 @@ class MainInterpreter(_BaseInterpreter):
         """
         if interpreter == Utf8Interpreter:
             if to_char == 'p':
-                self.bound_utf = __f
+                self._UTF8_Interpreter.bind_to_char(__f)
             elif to_char == 'f':
-                self.bound_final_utf = __f
+                self._UTF8_Interpreter.bind_to_fin(__f)
             else:
-                self.bound_utf = __f
-                self.bound_final_utf = __f
+                self._UTF8_Interpreter.bind(__f, __f)
+        elif interpreter == FsFpnFInterpreter:
+            if to_char == 'p':
+                self._FsFpnF_Interpreter.bind_to_char(__f)
+            elif to_char == 'f':
+                self._FsFpnF_Interpreter.bind_to_fin(__f)
+            else:
+                self._FsFpnF_Interpreter.bind(__f, __f)
+        elif interpreter == BrPasteMInterpreter:
+            if to_char == 'p':
+                self._Esc_Interpreters[b'['].BrPasteMInterpreter.bind_to_char(__f)
+            elif to_char == 'f':
+                self._Esc_Interpreters[b'['].BrPasteMInterpreter.bind_to_fin(__f)
+            else:
+                self._Esc_Interpreters[b'['].BrPasteMInterpreter.bind(__f, __f)
+        elif interpreter == MouseInterpreter:
+            if to_char == 'p':
+                self._Esc_Interpreters[b'['].MouseInterpreter.bind_to_char(__f)
+            elif to_char == 'f':
+                self._Esc_Interpreters[b'['].MouseInterpreter.bind_to_fin(__f)
+            else:
+                self._Esc_Interpreters[b'['].MouseInterpreter.bind(__f, __f)
         else:
             if interpreter == 'any':
                 interpreter = object
                 if to_char == 'p':
-                    self.bound_utf = __f
+                    self._UTF8_Interpreter.bind_to_char(__f)
+                    self._FsFpnF_Interpreter.bind_to_char(__f)
+                    self._Esc_Interpreters[b'['].BrPasteMInterpreter.bind_to_char(__f)
+                    self._Esc_Interpreters[b'['].MouseInterpreter.bind_to_char(__f)
                 elif to_char == 'f':
-                    self.bound_final_utf = __f
+                    self._UTF8_Interpreter.bind_to_fin(__f)
+                    self._FsFpnF_Interpreter.bind_to_fin(__f)
+                    self._Esc_Interpreters[b'['].BrPasteMInterpreter.bind_to_fin(__f)
+                    self._Esc_Interpreters[b'['].MouseInterpreter.bind_to_fin(__f)
                 else:
-                    self.bound_utf = __f
-                    self.bound_final_utf = __f
+                    self._UTF8_Interpreter.bind(__f, __f)
+                    self._FsFpnF_Interpreter.bind(__f, __f)
+                    self._Esc_Interpreters[b'['].BrPasteMInterpreter.bind(__f, __f)
+                    self._Esc_Interpreters[b'['].MouseInterpreter.bind(__f, __f)
             if to_char == 'p':
                 def bind(_inter: _BaseInterpreter):
                     _inter.bind_to_char(__f)
@@ -1103,6 +1195,6 @@ class MainInterpreter(_BaseInterpreter):
                 def bind(_inter: _BaseInterpreter):
                     _inter.bind_to_char(__f)
                     _inter.bind_to_fin(__f)
-            for inter in self._Interpreters.values():
+            for inter in self._Esc_Interpreters.values():
                 if isinstance(inter, interpreter):
                     bind(inter)
