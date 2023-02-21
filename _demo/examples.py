@@ -286,6 +286,9 @@ def visual_interpreters():
     print(f"{repr(sys.stdin)=}")
 
 
+test_oscolor = OSColorTests.request_color_slots
+
+
 if __name__ == "__main__":
     from sys import argv
     if code := str().join(a + ' ' for a in argv[1:]):
