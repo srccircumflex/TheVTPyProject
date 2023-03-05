@@ -895,6 +895,7 @@ class DisplayBrowsable(_DisplayBase):
     _width: int
     _cont_width: int
     _vis_overflow: Sequence[str, str, str]
+    _overflow_space: tuple[int, int, int]
     _lapping: int
     _prompt_factory: Callable[
         [
@@ -915,11 +916,12 @@ class DisplayBrowsable(_DisplayBase):
     _outofran_f: EscSegment | EscContainer
 
     _pointer_start_ovf: int
+    _pointer_start_oor: int
 
-    __slots__ = ('_width', '_cont_width', '_vis_overflow', '_lapping', '_prompt_factory', '_promptl_len',
-                 '_promptr_len', '_basic_part_area', '_first_part_area', '_middle_part_area', '_last_part_area',
-                 '_basic_part_f', '_first_part_f', '_middle_part_f', '_last_part_f', '_outofran_f',
-                 '_pointer_start_ovf')
+    __slots__ = ('_width', '_cont_width', '_vis_overflow', '_overflow_space', '_lapping', '_prompt_factory',
+                 '_promptl_len', '_promptr_len', '_basic_part_area', '_first_part_area', '_middle_part_area',
+                 '_last_part_area', '_basic_part_f', '_first_part_f', '_middle_part_f', '_last_part_f', '_outofran_f',
+                 '_pointer_start_ovf', '_pointer_start_oor')
 
     def __init__(self,
                  __buffer__: TextBuffer,
@@ -949,13 +951,12 @@ class DisplayBrowsable(_DisplayBase):
                  i_display_generator: Callable[[DisplayRowItem], Any] | None,
                  i_before_framing: Callable[[str, VisRowItem], str] | None
                  ):
-        self._prompt_factory = prompt_factory
         _DisplayBase.__init__(self, __buffer__, height, y_auto_scroll_distance, highlighter,
                               highlighted_rows_cache_max, highlighted_row_segments_max, vis_tab,
                               vis_marked, vis_end, vis_nb_end, visendpos, vis_cursor, vis_anchor, vis_cursor_row,
                               stdcurpos, i_rowitem_generator, i_display_generator, i_before_framing)
         self.settings(width=width, vis_overflow=vis_overflow, lapping=lapping,
-                      promptl_len=promptl_len, promptr_len=promptr_len)
+                      promptl_len=promptl_len, promptr_len=promptr_len, prompt_factory=prompt_factory)
 
     @overload
     def settings(self, *,
@@ -963,6 +964,8 @@ class DisplayBrowsable(_DisplayBase):
                  height: int = ...,
                  y_auto_scroll_distance: int = ...,
                  lapping: int = ...,
+                 prompt_factory: Callable[[_Row, Literal[0, 1, 2, 3, 4]],
+                                          Sequence[EscSegment | EscContainer, EscSegment | EscContainer]] = ...,
                  promptl_len: int = ...,
                  promptr_len: int = ...,
                  vis_overflow: Sequence[str, str, str] = ...,
@@ -998,14 +1001,19 @@ class DisplayBrowsable(_DisplayBase):
             except KeyError:
                 pass
 
+        try:
+            self._prompt_factory = kwargs.pop('prompt_factory')
+        except KeyError:
+            pass
+
         if newsize:
             self._cont_width = self._width - (self._promptl_len + self._promptr_len)
-            overflow_space = tuple(map(len, self._vis_overflow))
+            self._overflow_space = tuple(map(len, self._vis_overflow))
             self._basic_part_area = self._cont_width - 1  # cursor
-            self._first_part_area = self._cont_width - overflow_space[1]
-            _middle_part_width = self._cont_width - (overflow_space[0] + overflow_space[1])
+            self._first_part_area = self._cont_width - self._overflow_space[1]
+            _middle_part_width = self._cont_width - (self._overflow_space[0] + self._overflow_space[1])
             self._middle_part_area = _middle_part_width - self._lapping
-            _last_part_width = self._cont_width - overflow_space[0]
+            _last_part_width = self._cont_width - self._overflow_space[0]
             self._last_part_area = _last_part_width - (1  # cursor
                                                        + self._lapping)
             self._basic_part_f = EscSegment.new('', '%%-%ds' % self._cont_width, SGRReset())
@@ -1020,9 +1028,27 @@ class DisplayBrowsable(_DisplayBase):
                                                   '%%-%ds' % _last_part_width,
                                                   SGRReset())
             self._outofran_f = EscContainer.more(self._vis_overflow[2],
-                                                 '%%-%ds' % (self._cont_width - overflow_space[2]),
+                                                 '%%-%ds' % (self._cont_width - self._overflow_space[2]),
                                                  SGRReset())
-            self._pointer_start_ovf = self._promptl_len + overflow_space[0] + self._lapping
+            self._pointer_start_ovf = self._promptl_len + self._overflow_space[0] + self._lapping
+            self._pointer_start_oor = self._promptl_len + self._overflow_space[2]
+
+#            debug_o(f"""
+#{self._width=}
+#{self._cont_width=}
+#{self._overflow_space=}
+#{self._basic_part_area=}
+#{self._first_part_area=}
+#{self._middle_part_area=}
+#{self._last_part_area=}
+#{self._basic_part_f=}
+#{self._first_part_f=}
+#{self._middle_part_f=}
+#{self._last_part_f=}
+#{self._outofran_f=}
+#{self._pointer_start_ovf=}
+#{self._pointer_start_oor=}
+#            """)
 
         super().settings(**kwargs)
 
@@ -1065,7 +1091,7 @@ class DisplayBrowsable(_DisplayBase):
         if lenrow <= self._basic_part_area:
             if vis_cursor > self._basic_part_area:
                 return RowFrameItem(
-                    display_pointer=self._promptl_len,
+                    display_pointer=self._pointer_start_oor,
                     part_cursor=vis_cursor,
                     vis_slice=None,
                     part_form=self._outofran_f,
@@ -1093,9 +1119,9 @@ class DisplayBrowsable(_DisplayBase):
             visslc_start = vis_cursor - frame_pnt
             visslc_stop = visslc_start + self._middle_part_area
 
-            if visslc_start >= lenrow:
+            if visslc_start > lenrow:
                 return RowFrameItem(
-                    display_pointer=self._promptl_len,
+                    display_pointer=self._pointer_start_oor,
                     part_cursor=vis_cursor,
                     vis_slice=None,
                     part_form=self._outofran_f,
@@ -1153,7 +1179,7 @@ class DisplayScrollable(DisplayBrowsable):
         if lenrow <= self._basic_part_area:
             if vis_cursor > self._basic_part_area or vis_cursor > lenrow:
                 return RowFrameItem(
-                    display_pointer=self._promptl_len,
+                    display_pointer=self._pointer_start_oor,
                     part_cursor=vis_cursor,
                     vis_slice=None,
                     part_form=self._outofran_f,
@@ -1169,9 +1195,9 @@ class DisplayScrollable(DisplayBrowsable):
                 )
             else:
                 return RowFrameItem(
-                    display_pointer=self._promptl_len + self._lapping,
+                    display_pointer=self._pointer_start_ovf,
                     part_cursor=self._lapping,
-                    vis_slice=(vis_cursor - self._lapping + 1, None),  # slice(stop=None) identifier for visual end
+                    vis_slice=(vis_cursor - self._lapping, None),  # slice(stop=None) identifier for visual end
                     part_form=self._last_part_f,
                     lr_prompt=self._prompt_factory(row, 3)
                 )
@@ -1183,15 +1209,15 @@ class DisplayScrollable(DisplayBrowsable):
                 part_form=self._first_part_f,
                 lr_prompt=self._prompt_factory(row, 1)
             )
-        elif (visslc_start := vis_cursor - self._lapping) >= lenrow:
+        elif (visslc_start := vis_cursor - self._lapping) > lenrow:
             return RowFrameItem(
-                display_pointer=vis_cursor + self._promptl_len,
+                display_pointer=self._pointer_start_oor,
                 part_cursor=vis_cursor,
                 vis_slice=None,
                 part_form=self._outofran_f,
                 lr_prompt=self._prompt_factory(row, 4)
             )
-        elif visslc_start + self._last_part_area + self._lapping >= lenrow:
+        elif vis_cursor + self._last_part_area >= lenrow:
             return RowFrameItem(
                 display_pointer=self._pointer_start_ovf,
                 part_cursor=self._lapping,
@@ -1203,7 +1229,7 @@ class DisplayScrollable(DisplayBrowsable):
             return RowFrameItem(
                 display_pointer=self._pointer_start_ovf,
                 part_cursor=self._lapping,
-                vis_slice=(visslc_start, visslc_start + self._middle_part_area + self._lapping),
+                vis_slice=(visslc_start, vis_cursor + self._middle_part_area),
                 part_form=self._middle_part_f,
                 lr_prompt=self._prompt_factory(row, 2)
             )
@@ -1250,16 +1276,17 @@ class DisplayStatic(_DisplayBase):
                  i_before_framing: Callable[[str, VisRowItem], str] | None
                  ):
 
-        self._prompt_factory = prompt_factory
         _DisplayBase.__init__(self, __buffer__, height, y_auto_scroll_distance, highlighter,
                               highlighted_rows_cache_max, highlighted_row_segments_max, vis_tab, vis_marked,
                               vis_end, vis_nb_end, visendpos, vis_cursor, vis_anchor, vis_cursor_row, 0,
                               i_rowitem_generator, i_display_generator, i_before_framing)
+        self.settings(prompt_factory=prompt_factory)
 
     @overload
     def settings(self, *,
                  height: int = ...,
                  y_auto_scroll_distance: int = ...,
+                 prompt_factory: Callable[[_Row], Sequence[EscSegment | EscContainer, EscSegment | EscContainer]] = ...,
                  vis_marked: tuple[Callable[[str, VisRowItem, list[int, int]], str],
                                    Callable[[str, VisRowItem, list[int, int]], str]] | None = ...,
                  vis_end: Sequence[str | None, str | None, str | None] | None = ...,
@@ -1279,6 +1306,9 @@ class DisplayStatic(_DisplayBase):
         ...
 
     def settings(self, **kwargs) -> None:
+        """
+        Change the :class:`_DisplayBase` | :class:`DisplayStatic` settings.
+        """
         super().settings(**kwargs)
 
     def scroll_x(self, z: int, mark: bool) -> bool:
