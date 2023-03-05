@@ -46,6 +46,7 @@ SGR Lookup
     :align: center
     :width: 1050
     :alt: SGRLookup.gif
+    :target: ./_demo/sgr_lookup_tui.py
 
 → `demo sgr_lookup_tui`_
 
@@ -56,6 +57,7 @@ Find in Buffer
     :align: center
     :width: 1050
     :alt: FindInBuffer.gif
+    :target: ./_demo/editor.py
 
 → `demo editor`_
 
@@ -66,6 +68,7 @@ Insert Modes
     :align: center
     :width: 1050
     :alt: InsertModes.gif
+    :target: ./_demo/editor.py
 
 → `demo editor`_
 
@@ -84,6 +87,7 @@ Tab Shifting
     :align: center
     :width: 1050
     :alt: TabShift.gif
+    :target: ./_demo/editor.py
 
 → `demo editor`_
 
@@ -94,6 +98,7 @@ Markers
     :align: center
     :width: 1050
     :alt: Markers.gif
+    :target: ./_demo/editor.py
 
 → `demo editor`_
 
