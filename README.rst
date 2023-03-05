@@ -15,6 +15,7 @@ The [ Video Terminal Python ] Project
     :align: center
     :width: 550
     :alt: VT-Python-Logo.png
+    :target: https://github.com/srccircumflex/TheVTPyProject/wiki
 
 Statute
 =======
