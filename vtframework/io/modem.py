@@ -216,7 +216,7 @@ class InputRouter(Thread):
     t_block: bool
     t_keepalive: bool
 
-    def __init__(self, thread_smoothness: float | bool = .03, thread_block: bool = False,
+    def __init__(self, thread_smoothness: float | bool = .003, thread_block: bool = False,
                  **modems: InputModem | InputSuperModem):
         self._modems = dict(**modems)
         Thread.__init__(self, daemon=True)

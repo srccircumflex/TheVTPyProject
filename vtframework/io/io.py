@@ -582,7 +582,7 @@ class Input(Thread):
     t_keepalive: bool
     __interpreter__: MainInterpreter
 
-    def __init__(self, thread_smoothness: float | bool = .03, thread_block: bool = False,
+    def __init__(self, thread_smoothness: float | bool = .003, thread_block: bool = False,
                  thread_spam: SpamHandle | None = SpamHandle(),
                  mod: bool = True):
         Thread.__init__(self, daemon=True)
@@ -727,7 +727,7 @@ class InputSuper(Input):
     adapter_processing_tolerance: float = 0.002
 
     def __init__(self,
-                 thread_smoothness: float | bool = .03, thread_block: bool = False,
+                 thread_smoothness: float | bool = .003, thread_block: bool = False,
                  thread_spam: SpamHandle | None = SpamHandle(),
                  manual_esc_tt: float = .8,
                  manual_esc_interpreter: bool = False,
