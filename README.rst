@@ -28,8 +28,8 @@ emulator; several modules for categorizing, cataloging, handling, interpreting, 
 data inputs, and the ANSI escape sequences; a package for technical processing of an unblocked stdin stream;
 and the first basic modules and objects for implementing text-based widgets.
 
-The development is done by myself on a hobby basis, the progress and next goals can be seen under
-Issues_. There is also a full documentation available in the Wiki_.
+The development is done by myself on a hobby basis, the progress can be seen under the
+`Version List`_. There is also a full documentation available in the Wiki_.
 
 Reports, ideas and questions are very welcome and can be directed to
 :html:`<a href="mailto:srccircumflex@outlook.com?subject=The%20VT-Python%20Project">
@@ -103,7 +103,7 @@ Markers
 → `demo editor`_
 
 
-.. _Issues: https://github.com/srccircumflex/TheVTPyProject/issues
+.. _Version List: https://github.com/srccircumflex/TheVTPyProject/wiki/version-list
 .. _Wiki: https://github.com/srccircumflex/TheVTPyProject/wiki
 
 .. _demo editor: ./_demo/editor.py
