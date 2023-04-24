@@ -48,7 +48,7 @@ Window grid and mouse support
     :align: center
     :width: 1050
     :alt: Grid.gif
-    :target: ./_demo/Grid.py
+    :target: ./_demo/widgets.py
 
 → `demo widgets`_
 
