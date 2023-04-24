@@ -945,8 +945,8 @@ class _Cursors:
                 n -= seg_len
                 i += 1
                 seg_len = visual_index[i]
-            if i != len(visual_index) - 1 and n == seg_len:
-                n = len(raster[i]) + 1
+            if i != len(visual_index) - 1 and n > (_li := len(raster[i])):
+                n = _li + 1
             return sum(len(s) + 1 for s in raster[:i]) + n
 
         return self.cur_translation_cache.__call__(f, 4, __n)
@@ -965,12 +965,12 @@ class _Cursors:
             visual_index = self.__row__.data_cache.visual_len_index
             seg_len = visual_index[i]
             raster = self.__row__.data_cache.raster
-            while n > seg_len:
+            while n >= seg_len:
                 n -= seg_len
                 i += 1
                 seg_len = visual_index[i]
-            if (_l := len(raster[i])) < n:
-                n = (_l if not i else 0)
+            if n >= (_li := len(raster[i])):
+                n = _li
             return sum(len(s) + 1 for s in raster[:i]) + n
 
         return self.cur_translation_cache.__call__(f, 0, __n)

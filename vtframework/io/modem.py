@@ -277,7 +277,7 @@ class InputRouter(Thread):
         """
         Pop an entry from the table.
 
-        :return: An modem entry or None.
+        :return: A modem entry or None.
         """
         return self._modems.pop(entry, None)
     

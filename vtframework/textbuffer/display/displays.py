@@ -29,12 +29,13 @@ from abc import abstractmethod
 try:
     from .._buffercomponents import _Row, ChunkLoad, _Marking
     from ..buffer import TextBuffer
+    from ...video.items import VisualRealTarget
 except ImportError:
     pass
 
 from ...iodata.sgr import SGRReset
 from ...iodata.esccontainer import EscSegment, EscContainer
-from .items import VisRowItem, RowFrameItem, DisplayRowItem, DisplayItem
+from .items import VisRowItem, RowFrameItem, DisplayRowItem, DisplayItem, DisplayCoordTarget
 from .highlighters import HighlighterBase, HighlightRegex, HighlightAdvanced
 
 
@@ -198,14 +199,18 @@ class _DisplayBase:
     height: int
     height_central: int
     y_auto_scroll_distance: int
+    _y_auto_scroll_distance: int
 
     _auto_scroll_top_distance: int
     _auto_scroll_bottom_distance: int
     _auto_scroll_top_display_row: int
     _auto_scroll_bottom_display_row: int
 
+    _make_display_by_cursors_: Callable[[int, Callable[[_Row], int]], DisplayItem]
     _get_y_rows_by_hint: Callable[[int], list[_Row]] | None
     _y_scrolled: bool
+
+    y_minimum_size_undercut: bool
 
     __buffer__: TextBuffer
     __highlighter__: HighlighterBase | HighlightRegex | HighlightAdvanced
@@ -213,10 +218,15 @@ class _DisplayBase:
     __slots__ = ('_vis_marked', '_vis_end', '_vis_nb_end', '_vis_cursor', '_vis_anchor', '_vis_cursor_row',
                  '_getstdcurpos', '_visualfinish', '__buffer__', '__highlighter__', 'current_display',
                  'current_row_num', 'current_cursor_row_area', 'current_slice', 'height', 'y_auto_scroll_distance',
-                 '_auto_scroll_top_distance', '_auto_scroll_bottom_distance', '_auto_scroll_top_display_row',
-                 '_auto_scroll_bottom_display_row', 'height_central', '_get_y_rows_by_hint', '_y_scrolled',
-                 'current_y_pointer', 'current_x_pointer', '_i_rowitem_generator', '_i_display_generator',
-                 '_i_before_framing')
+                 '_y_auto_scroll_distance', '_auto_scroll_top_distance', '_auto_scroll_bottom_distance',
+                 '_auto_scroll_top_display_row', '_auto_scroll_bottom_display_row', 'height_central',
+                 '_get_y_rows_by_hint', '_make_display_by_cursors_', 'y_minimum_size_undercut', '_y_scrolled',
+                 'current_y_pointer', 'current_x_pointer',
+                 '_i_rowitem_generator', '_i_display_generator', '_i_before_framing')
+
+    @property
+    def current_display_row(self) -> DisplayRowItem:
+        return self.current_display.rows[self.current_display.pointer_row]
 
     def __init__(self, __buffer__: TextBuffer,
                  height: int,
@@ -240,17 +250,13 @@ class _DisplayBase:
                  ):
         self.__buffer__ = __buffer__
         __buffer__.__display__ = self
-        self.height = height
-        self._auto_scroll_top_distance = self._auto_scroll_top_display_row = self.y_auto_scroll_distance = y_auto_scroll_distance
-        self._auto_scroll_bottom_display_row = (height - y_auto_scroll_distance) - 1
-        self._auto_scroll_bottom_distance = y_auto_scroll_distance + 1
-        self.height_central = (height - 1) // 2
 
         self._y_scrolled = False
         self.current_row_num = __buffer__.current_row.__row_num__
-        self.get_next_y_by_hint('central')
-        self.get_y_rows()
-        self.settings(highlighter=highlighter,
+
+        self.settings(height=height,
+                      y_auto_scroll_distance=y_auto_scroll_distance,
+                      highlighter=highlighter,
                       vis_marked=vis_marked,
                       vis_end=vis_end,
                       vis_nb_end=vis_nb_end,
@@ -265,6 +271,9 @@ class _DisplayBase:
                       i_before_framing=i_before_framing,
                       highlighted_rows_cache_max=highlighted_rows_cache_max,
                       highlighted_row_segments_max=highlighted_row_segments_max)
+
+        self.get_next_y_by_hint('central')
+        self.get_y_rows()
 
     @overload
     def settings(self, *,
@@ -544,12 +553,52 @@ class _DisplayBase:
         except KeyError:
             pass
 
-        self.height = kwargs.pop('height', self.height)
-        self.y_auto_scroll_distance = kwargs.pop('y_auto_scroll_distance', self.y_auto_scroll_distance)
-        self.height_central = (self.height - 1) // 2
-        self._auto_scroll_top_distance = self._auto_scroll_top_display_row = self.y_auto_scroll_distance
-        self._auto_scroll_bottom_display_row = (self.height - self.y_auto_scroll_distance) - 1
-        self._auto_scroll_bottom_distance = self.y_auto_scroll_distance + 1
+        try:
+            self._y_auto_scroll_distance = kwargs.pop('y_auto_scroll_distance')
+        except KeyError:
+            pass
+
+        try:
+            if (height := kwargs.pop('height')) <= 0:
+                self.height = 0
+                self._make_display_by_cursors_ = self._make_undercut_display
+                self.height_central = 0
+                self.y_auto_scroll_distance = 0
+                self._auto_scroll_top_distance = 0
+                self._auto_scroll_top_display_row = 0
+                self._auto_scroll_bottom_display_row = 0
+                self._auto_scroll_bottom_distance = 0
+                self.y_minimum_size_undercut = True
+            else:
+                self.height = height
+                self._make_display_by_cursors_ = self._make_display_by_cursors
+                self.height_central = (self.height - 1) // 2
+                self.y_auto_scroll_distance = min(self._y_auto_scroll_distance, self.height_central)
+                if self.height_central:
+                    self._auto_scroll_bottom_display_row = (self.height - self.y_auto_scroll_distance) - 1
+                    self._auto_scroll_bottom_distance = self.y_auto_scroll_distance + 1
+                    self._auto_scroll_top_distance = self.y_auto_scroll_distance
+                    self._auto_scroll_top_display_row = self.y_auto_scroll_distance
+                else:
+                    self._auto_scroll_bottom_display_row = 0
+                    self._auto_scroll_bottom_distance = 0
+                    self._auto_scroll_top_distance = 0
+                    self._auto_scroll_top_display_row = 0
+                self.y_minimum_size_undercut = False
+        except KeyError:
+            self._auto_scroll_top_distance = self.y_auto_scroll_distance
+            self._auto_scroll_top_display_row = self.y_auto_scroll_distance
+            if self.height_central:
+                self._auto_scroll_bottom_display_row = (self.height - self.y_auto_scroll_distance) - 1
+                self._auto_scroll_bottom_distance = self.y_auto_scroll_distance + 1
+                self._auto_scroll_top_distance = self.y_auto_scroll_distance
+                self._auto_scroll_top_display_row = self.y_auto_scroll_distance
+            else:
+                self._auto_scroll_bottom_display_row = 0
+                self._auto_scroll_bottom_distance = 0
+                self._auto_scroll_top_distance = 0
+                self._auto_scroll_top_display_row = 0
+            self.y_minimum_size_undercut = False
 
         if kwargs:
             raise ValueError(kwargs)
@@ -594,7 +643,7 @@ class _DisplayBase:
             rowarea = self.__buffer__.rows[s:e]
             self.current_slice = (s, e)
         else:
-            for row in reversed(self.__buffer__.rows[:cur_idx]):
+            for row in reversed(self.__buffer__.rows[:cur_idx + 1]):
                 if row.__row_num__ == self.current_cursor_row_area[0]:
                     s = max(0, row.__row_index__ - self._auto_scroll_top_distance)
                     e = s + self.height
@@ -783,12 +832,11 @@ class _DisplayBase:
 
         return self.make_display_by_cursors(cursor, cursor2)
 
-    def make_display_by_cursors(self, inrow_cursor: int, other_cursors: Callable[[_Row], int]) -> DisplayItem:
-        """
-        Summarize, using the cursor position in the current row and an executable object that returns the cursor
-        position for the remaining rows, the display rows and set the x/y position of the cursor relative to the
-        displayed area.
-        """
+    def _make_undercut_display(self, inrow_cursor: int, other_cursors: Callable[[_Row], int]) -> DisplayItem:
+        self.current_display = DisplayItem([], 0, 0)
+        return self.current_display
+    
+    def _make_display_by_cursors(self, inrow_cursor: int, other_cursors: Callable[[_Row], int]) -> DisplayItem:
 
         rowitems = list()
         markings = [m for m in self.__buffer__.__marker__.sorted_copy() if m[0] != m[1]]
@@ -826,6 +874,314 @@ class _DisplayBase:
 
         self.current_display = DisplayItem(display_rows, self.current_y_pointer, self.current_x_pointer)
         return self.current_display
+
+    def make_display_by_cursors(self, inrow_cursor: int, other_cursors: Callable[[_Row], int]) -> DisplayItem:
+        """
+        Summarize, using the cursor position in the current row and an executable object that returns the cursor
+        position for the remaining rows, the display rows and set the x/y position of the cursor relative to the
+        displayed area.
+        """
+        return self._make_display_by_cursors_(inrow_cursor, other_cursors)
+
+    def display_coord_target_border(
+            self,
+            quarter: Literal["N", "O", "S", "E", "NO", "NE", "SO", "SE"]
+    ) -> DisplayCoordTarget:
+        """
+        Create a :class:`DisplayCoordTarget` that points to the edge of a display.
+        """
+        trowitm = self.current_display_row
+        cnt_cur = trowitm.row_item.row.cursors.content
+        if "S" in quarter:
+            trowitm = self.current_display.rows[-1]
+        elif "N" in quarter:
+            trowitm = self.current_display.rows[0]
+        if "O" in quarter:
+            if slc := trowitm.row_item.row_frame.vis_slice:
+                if not slc[1]:
+                    cnt_cur = trowitm.row_item.row.data_cache.len_content
+                else:
+                    cnt_cur = trowitm.row_item.row.cursors.tool_vis_to_cnt(slc[1])
+            else:
+                cnt_cur = trowitm.row_item.row.data_cache.len_content
+        elif "E" in quarter:
+            if slc := trowitm.row_item.row_frame.vis_slice:
+                cnt_cur = trowitm.row_item.row.cursors.tool_vis_to_cnt(slc[0])
+            else:
+                cnt_cur = trowitm.row_item.row.data_cache.len_content
+        else:
+            cnt_cur = min(cnt_cur, trowitm.row_item.row.data_cache.len_content)
+        return DisplayCoordTarget(self, trowitm, trowitm.row_item.row, cnt_cur, False, False)
+
+    @overload
+    def display_coord_target(
+            self,
+            vis_coord: tuple[int, int],
+            quarter: Literal["N", "O", "S", "E", "NO", "NE", "SO", "SE"] = "",
+            quarter_focus: bool = False,
+            quarter_border_focus: bool = False,
+            column_rel_to_: Literal["display", "d", "origin", "o"] | None = "display",
+            as_far: bool = True,
+    ) -> DisplayCoordTarget:
+        ...
+
+    @overload
+    def display_coord_target(
+            self,
+            vis_coord: tuple[int, int],
+            *,
+            column_rel_to_: Literal["display", "d", "origin", "o"] | None = "display",
+            as_far: bool = True,
+    ) -> DisplayCoordTarget:
+        ...
+
+    def display_coord_target(
+            self,
+            vis_coord: tuple[int, int],
+            quarter: Literal["N", "O", "S", "E", "NO", "NE", "SO", "SE"] = "",
+            quarter_focus: bool = False,
+            quarter_border_focus: bool = False,
+            column_rel_to_: Literal["display", "d", "origin", "o"] | None = "display",
+            as_far: bool = True,
+    ) -> DisplayCoordTarget:
+        """
+        Create a :class:`DisplayCoordTarget` that points to the visual coordinate (`vis_coord`) in the display.
+
+        If `quarter` contains a cardinal direction, the coordinate in `vis_coord` of the associated axis is understood
+        as the distance to the shown buffer. `vis_coord` is formulated as ``(<x>, <y>)``.
+
+        Example:
+        If `area` is ``"E"``, the x coordinate is understood as the distance to the left edge of the
+        shown area; the y coordinate then describes an actual row number of the displayed area.
+        If `area` is ``"NO"``, both the x and the y coordinate are understood as a distance specification.
+
+        If a cardinal direction is set (`quarter`), the parameters `quarter_focus` and `quarter_border_focus` are
+        evaluated:
+        If `quarter_focus` is True, only the axis(es) of `vis_coord` that belongs to the cardinal direction is
+        evaluated and the current position of the remaining axis is kept.
+        If `quarter_border_focus` is True, before the evaluation of `quarter_focus` the DisplayCoordTarget is
+        calculated starting from the edge on the side of the cardinal direction of the display.
+
+        Example:
+
+        >>>        ┌─<Widget>──────┐
+        ... <row0> │               │
+        ... <row1> │            █  │   # Cursor (x = 12, y = 1)
+        ... <row2> │               │
+        ... <row3> │               │
+        ...        └───────────────┘
+        >>> display_coord_target(vis_coord=(2, 1), quarter="S", quarter_focus=True, quarter_border_focus=True)
+        ...        ┌─<Widget>──────┐
+        ... <row1> │               │
+        ... <row2> │               │
+        ... <row3> │               │
+        ... <row4> │            █  │   # Cursor (x = 12, y = 4)
+        ...        └───────────────┘
+
+        By default, DisplayCoordTarget is calculated in conjunction with the visual coordinate (`vis_coord`) starting 
+        from the visual display (`column_rel_to_`\\ ``="display"``). If this parameter is set to ``origin``, the 
+        coordinates are calculated from the original position.
+        
+        Example:
+
+        >>>        ┌─<Widget>──────┐
+        ... <row0> │0123456789ABCD>│
+        ... <row1> │<CDEFGHIJKL█NO>│   # Cursor (x = 22, y = 1)
+        ... <row2> │0123456789ABCD>│
+        ... <row3> │0123456789ABCD>│
+        ...        └───────────────┘
+        >>> display_coord_target(vis_coord=(2, 2), column_rel_to_="origin")
+        ...        ┌─<Widget>──────┐
+        ... <row0> │0123456789ABCD>│
+        ... <row1> │0123456789ABCD>│
+        ... <row2> │<CDEFGHIJKLMN█>│   # Cursor (x = 24, y = 2)
+        ... <row3> │0123456789ABCD>│
+        ...        └───────────────┘
+        >>> display_coord_target(vis_coord=(2, 1), column_rel_to_="display")
+        ...        ┌─<Widget>──────┐
+        ... <row0> │0123456789ABCD>│
+        ... <row1> │01█3456789ABCD>│   # Cursor (x = 2, y = 1)
+        ... <row2> │0123456789ABCD>│
+        ... <row3> │0123456789ABCD>│
+        ...        └───────────────┘
+
+        If a visual coordinate cannot be reached due to the data in the buffer, the closest possible point in the data
+        is selected by default. If the parameter `as_far` is set to False, an error is raised instead.
+        """
+        if as_far:
+            def _raise(_e):
+                pass
+        else:
+            def _raise(_e):
+                raise _e
+
+        x_as_far = False
+        y_as_far = False
+
+        if quarter:
+
+            trowitm: None | DisplayRowItem
+            _orowitm = trowitm = self.current_display_row
+            _row = trowitm.row_item.row
+            cnt_cur = trowitm.row_item.row.cursors.content
+            vis_cur = trowitm.row_item.row.cursors.visual
+
+            if quarter_border_focus:
+                if "S" in quarter:
+                    try:
+                        _row = self.__buffer__.rows[self.current_display.rows[-1].row_item.row.__row_index__ + vis_coord[1]]
+                    except IndexError as e:
+                        _raise(e)
+                        _row = self.__buffer__.rows[-1]
+                        y_as_far = True
+                    trowitm = None
+                elif "N" in quarter:
+                    try:
+                        _row = self.__buffer__.rows[self.current_display.rows[0].row_item.row.__row_index__ - vis_coord[1]]
+                    except IndexError as e:
+                        _raise(e)
+                        _row = self.__buffer__.rows[0]
+                        y_as_far = True
+                    trowitm = None
+                elif not quarter_focus:
+                    try:
+                        trowitm = self.current_display.rows[vis_coord[1]]
+                        _row = trowitm.row_item.row
+                    except IndexError as e:
+                        _raise(e)
+                        y_as_far = True
+                try:
+                    tri = trowitm or _orowitm
+                    if "O" in quarter:
+                        if slc := tri.row_item.row_frame.vis_slice:
+                            if not slc[1]:
+                                cnt_cur = tri.row_item.row.data_cache.len_content
+                            else:
+                                cnt_cur = _row.cursors.tool_vis_to_cnt(slc[1] - 1 + vis_coord[0])
+                        else:
+                            cnt_cur = tri.row_item.row.data_cache.len_content
+                    elif "E" in quarter:
+                        if slc := tri.row_item.row_frame.vis_slice:
+                            cnt_cur = _row.cursors.tool_vis_to_cnt(max(0, slc[0] - vis_coord[0]))
+                        else:
+                            cnt_cur = tri.row_item.row.data_cache.len_content
+                    elif quarter_focus:
+                        cnt_cur = min(cnt_cur, _row.cursors.content)
+                    elif column_rel_to_:
+                        if column_rel_to_[0] == "o" or trowitm is None:
+                            if not (slc := _orowitm.row_item.row_frame.vis_slice):
+                                raise IndexError
+                            cnt_cur = _row.cursors.tool_vis_to_cnt(slc[0] + vis_coord[0] - _orowitm.row_item.row_frame.len_l_prompts)
+                        elif not (slc := trowitm.row_item.row_frame.vis_slice):
+                            raise IndexError
+                        else:
+                            cnt_cur = _row.cursors.tool_vis_to_cnt(slc[0] + vis_coord[0] - trowitm.row_item.row_frame.len_l_prompts)
+                    else:
+                        cnt_cur = _row.cursors.tool_vis_to_cnt(vis_coord[0])
+                except IndexError as e:
+                    _raise(e)
+                    x_as_far = True
+            else:
+                if "S" in quarter:
+                    try:
+                        _row = self.__buffer__.rows[_orowitm.row_item.row.__row_index__ + vis_coord[1]]
+                    except IndexError as e:
+                        _raise(e)
+                        _row = self.__buffer__.rows[-1]
+                        y_as_far = True
+                    trowitm = None
+                elif "N" in quarter:
+                    try:
+                        _row = self.__buffer__.rows[_orowitm.row_item.row.__row_index__ - vis_coord[1]]
+                    except IndexError as e:
+                        _raise(e)
+                        _row = self.__buffer__.rows[0]
+                        y_as_far = True
+                    trowitm = None
+                elif not quarter_focus:
+                    try:
+                        _orowitm = trowitm = self.current_display.rows[vis_coord[1]]
+                        _row = trowitm.row_item.row
+                    except IndexError as e:
+                        _raise(e)
+                        y_as_far = True
+                if "O" in quarter:
+                    try:
+                        cnt_cur = _row.cursors.tool_vis_to_cnt(vis_cur + vis_coord[0])
+                    except IndexError as e:
+                        _raise(e)
+                        cnt_cur = _row.data_cache.len_content
+                        x_as_far = True
+                elif "E" in quarter:
+                    try:
+                        if (vc := vis_cur - vis_coord[0]) < 0:
+                            raise IndexError
+                        cnt_cur = _row.cursors.tool_vis_to_cnt(vc)
+                    except IndexError as e:
+                        _raise(e)
+                        cnt_cur = 0
+                        x_as_far = True
+                elif quarter_focus:
+                    cnt_cur = min(cnt_cur, _row.cursors.content)
+                else:
+                    try:
+                        if column_rel_to_:
+                            if column_rel_to_[0] == "o" or trowitm is None:
+                                if not (slc := _orowitm.row_item.row_frame.vis_slice):
+                                    raise IndexError
+                                cnt_cur = _row.cursors.tool_vis_to_cnt(slc[0] + vis_coord[0] - _orowitm.row_item.row_frame.len_l_prompts)
+                            elif not (slc := trowitm.row_item.row_frame.vis_slice):
+                                raise IndexError
+                            else:
+                                cnt_cur = _row.cursors.tool_vis_to_cnt(slc[0] + vis_coord[0] - trowitm.row_item.row_frame.len_l_prompts)
+                        else:
+                            cnt_cur = _row.cursors.tool_vis_to_cnt(vis_coord[0])
+                    except IndexError as e:
+                        _raise(e)
+                        x_as_far = True
+
+            return DisplayCoordTarget(self, trowitm, _row, cnt_cur, x_as_far, y_as_far)
+
+        else:
+
+            try:
+                trowitm = self.current_display.rows[vis_coord[1]]
+            except IndexError as e:
+                _raise(e)
+                trowitm = self.current_display.rows[-1]
+                y_as_far = True
+            try:
+                if column_rel_to_:
+                    if column_rel_to_[0] == "o":
+                        _row_item = self.current_display_row.row_item
+                    else:
+                        _row_item = trowitm.row_item
+                    if not (slc := _row_item.row_frame.vis_slice):
+                        raise IndexError
+                    else:
+                        cnt_cur = trowitm.row_item.row.cursors.tool_vis_to_cnt(slc[0] + (vis_coord[0] - trowitm.row_item.row_frame.len_l_prompts))
+                else:
+                    cnt_cur = trowitm.row_item.row.cursors.tool_vis_to_cnt(
+                        vis_coord[0] - trowitm.row_item.row_frame.len_l_prompts)
+            except IndexError as e:
+                _raise(e)
+                cnt_cur = trowitm.row_item.row.data_cache.len_content
+                x_as_far = True
+
+            return DisplayCoordTarget(self, trowitm, trowitm.row_item.row, cnt_cur, x_as_far, y_as_far)
+
+    def display_coord_target_by_vrt(
+            self,
+            vrt: VisualRealTarget,
+            quarter_focus: bool = False,
+            quarter_border_focus: bool = False,
+            column_rel_to_: Literal["display", "d", "origin", "o"] | None = "display",
+            as_far: bool = True,
+    ) -> DisplayCoordTarget:
+        """
+        Shortcut method to method ``display_coord_target`` for processing :class:`VisualRealTarget`.
+        """
+        return self.display_coord_target(vrt.area_coord, vrt.outer_quarter, quarter_focus, quarter_border_focus, column_rel_to_, as_far)
 
 
 class DisplayBrowsable(_DisplayBase):
@@ -890,6 +1246,11 @@ class DisplayBrowsable(_DisplayBase):
             )``
 
             >>> vis_overflow=("<", ">", "<<")
+
+        - `width_min_char`
+            This character is displayed multiplied by the remaining width if the minimum width
+            is not reached. The minimum width consists of the prompt lengths, the lapping and
+            the characters for the displayed overflow.
     """
 
     _width: int
@@ -915,13 +1276,27 @@ class DisplayBrowsable(_DisplayBase):
     _last_part_f: EscSegment | EscContainer
     _outofran_f: EscSegment | EscContainer
 
+    _basic_llp: int
+    _overflow_llp: int
+    _outofran_llp: int
+    _basic_lrp: int
+    _overflow_lrp: int
+
+    _width_min: int
+    _width_min_char: EscSegment | EscContainer
+    _make_row_frame_: Callable[[_Row, int], RowFrameItem]
+
+    x_minimum_size_undercut: bool
+
     _pointer_start_ovf: int
     _pointer_start_oor: int
 
     __slots__ = ('_width', '_cont_width', '_vis_overflow', '_overflow_space', '_lapping', '_prompt_factory',
                  '_promptl_len', '_promptr_len', '_basic_part_area', '_first_part_area', '_middle_part_area',
                  '_last_part_area', '_basic_part_f', '_first_part_f', '_middle_part_f', '_last_part_f', '_outofran_f',
-                 '_pointer_start_ovf', '_pointer_start_oor')
+                 '_basic_llp', '_overflow_llp', '_outofran_llp', '_basic_lrp', '_overflow_lrp', '_width_min',
+                 '_width_min_char', '_make_row_frame_', 'x_minimum_size_undercut', '_pointer_start_ovf',
+                 '_pointer_start_oor')
 
     def __init__(self,
                  __buffer__: TextBuffer,
@@ -934,6 +1309,7 @@ class DisplayBrowsable(_DisplayBase):
                  promptr_len: int,
                  lapping: int,
                  vis_overflow: Sequence[str, str, str],
+                 width_min_char: EscSegment | EscContainer,
                  highlighter: Literal["regex", "r", "advanced", "a"] | None,
                  highlighted_rows_cache_max: int | None,
                  highlighted_row_segments_max: int | None,
@@ -955,7 +1331,7 @@ class DisplayBrowsable(_DisplayBase):
                               highlighted_rows_cache_max, highlighted_row_segments_max, vis_tab,
                               vis_marked, vis_end, vis_nb_end, visendpos, vis_cursor, vis_anchor, vis_cursor_row,
                               stdcurpos, i_rowitem_generator, i_display_generator, i_before_framing)
-        self.settings(width=width, vis_overflow=vis_overflow, lapping=lapping,
+        self.settings(width=width, vis_overflow=vis_overflow, width_min_char=width_min_char, lapping=lapping,
                       promptl_len=promptl_len, promptr_len=promptr_len, prompt_factory=prompt_factory)
 
     @overload
@@ -969,6 +1345,7 @@ class DisplayBrowsable(_DisplayBase):
                  promptl_len: int = ...,
                  promptr_len: int = ...,
                  vis_overflow: Sequence[str, str, str] = ...,
+                 width_min_char: EscSegment | EscContainer = ...,
                  vis_marked: tuple[Callable[[str, VisRowItem, list[int, int]], str],
                                    Callable[[str, VisRowItem, list[int, int]], str]] | None = ...,
                  vis_end: Sequence[str | None, str | None, str | None] | None = ...,
@@ -1001,14 +1378,15 @@ class DisplayBrowsable(_DisplayBase):
             except KeyError:
                 pass
 
-        try:
-            self._prompt_factory = kwargs.pop('prompt_factory')
-        except KeyError:
-            pass
+        for attr in ('prompt_factory', 'width_min_char',):
+            try:
+                setattr(self, '_' + attr, kwargs.pop(attr))
+            except KeyError:
+                pass
 
         if newsize:
             self._cont_width = self._width - (self._promptl_len + self._promptr_len)
-            self._overflow_space = tuple(map(len, self._vis_overflow))
+            self._overflow_space = (len(self._vis_overflow[0]), len(self._vis_overflow[1]), len(self._vis_overflow[2]))
             self._basic_part_area = self._cont_width - 1  # cursor
             self._first_part_area = self._cont_width - self._overflow_space[1]
             _middle_part_width = self._cont_width - (self._overflow_space[0] + self._overflow_space[1])
@@ -1033,22 +1411,32 @@ class DisplayBrowsable(_DisplayBase):
             self._pointer_start_ovf = self._promptl_len + self._overflow_space[0] + self._lapping
             self._pointer_start_oor = self._promptl_len + self._overflow_space[2]
 
-#            debug_o(f"""
-#{self._width=}
-#{self._cont_width=}
-#{self._overflow_space=}
-#{self._basic_part_area=}
-#{self._first_part_area=}
-#{self._middle_part_area=}
-#{self._last_part_area=}
-#{self._basic_part_f=}
-#{self._first_part_f=}
-#{self._middle_part_f=}
-#{self._last_part_f=}
-#{self._outofran_f=}
-#{self._pointer_start_ovf=}
-#{self._pointer_start_oor=}
-#            """)
+            self._width_min = (self._promptl_len + self._promptr_len +
+                               max(self._lapping + self._overflow_space[0] + self._overflow_space[1],
+                                   self._overflow_space[2]))
+            self._basic_llp = self._promptl_len
+            self._overflow_llp = self._promptl_len + self._overflow_space[0]
+            self._outofran_llp = self._promptl_len + self._overflow_space[2]
+            self._basic_lrp = self._promptr_len
+            self._overflow_lrp = self._promptr_len + self._overflow_space[1]
+            if self._width <= self._width_min:
+                def make_row_frame(row: _Row, vis_cursor: int) -> RowFrameItem:
+                    return RowFrameItem(
+                        display_pointer=0,
+                        part_cursor=0,
+                        vis_slice=(0, 0),
+                        len_l_prompts=0,
+                        len_r_prompts=0,
+                        content_width=0,
+                        part_id=4,
+                        part_form=EscSegment("%s"),
+                        lr_prompt=(self._width_min_char * self._width, EscSegment(""))
+                    )
+                self._make_row_frame_ = make_row_frame
+                self.x_minimum_size_undercut = True
+            else:
+                self._make_row_frame_ = self._make_row_frame
+                self.x_minimum_size_undercut = False
 
         super().settings(**kwargs)
 
@@ -1085,6 +1473,12 @@ class DisplayBrowsable(_DisplayBase):
         """
         The characteristic row-framing method for completing :class:`_DisplayBase`.
         """
+        return self._make_row_frame_(row, vis_cursor)
+
+    def _make_row_frame(self, row: _Row, vis_cursor: int) -> RowFrameItem:
+        """
+        The characteristic row-framing method for completing :class:`_DisplayBase`.
+        """
 
         lenrow = row.data_cache.len_visual_incl
 
@@ -1094,6 +1488,10 @@ class DisplayBrowsable(_DisplayBase):
                     display_pointer=self._pointer_start_oor,
                     part_cursor=vis_cursor,
                     vis_slice=None,
+                    len_l_prompts=self._outofran_llp,
+                    len_r_prompts=self._basic_lrp,
+                    content_width=0,
+                    part_id=4,
                     part_form=self._outofran_f,
                     lr_prompt=self._prompt_factory(row, 4)
                 )
@@ -1102,6 +1500,10 @@ class DisplayBrowsable(_DisplayBase):
                     display_pointer=self._promptl_len + vis_cursor,
                     part_cursor=vis_cursor,
                     vis_slice=(0, None),  # slice(stop=None) identifier for visual end
+                    len_l_prompts=self._basic_llp,
+                    len_r_prompts=self._basic_lrp,
+                    content_width=self._basic_part_area,
+                    part_id=0,
                     part_form=self._basic_part_f,
                     lr_prompt=self._prompt_factory(row, 0)
                 )
@@ -1110,6 +1512,10 @@ class DisplayBrowsable(_DisplayBase):
                 display_pointer=self._promptl_len + vis_cursor,
                 part_cursor=vis_cursor,
                 vis_slice=(0, self._first_part_area),
+                len_l_prompts=self._basic_llp,
+                len_r_prompts=self._overflow_lrp,
+                content_width=self._first_part_area,
+                part_id=1,
                 part_form=self._first_part_f,
                 lr_prompt=self._prompt_factory(row, 1)
             )
@@ -1124,6 +1530,10 @@ class DisplayBrowsable(_DisplayBase):
                     display_pointer=self._pointer_start_oor,
                     part_cursor=vis_cursor,
                     vis_slice=None,
+                    len_l_prompts=self._outofran_llp,
+                    len_r_prompts=self._basic_lrp,
+                    content_width=0,
+                    part_id=4,
                     part_form=self._outofran_f,
                     lr_prompt=self._prompt_factory(row, 4)
                 )
@@ -1136,6 +1546,10 @@ class DisplayBrowsable(_DisplayBase):
                     display_pointer=self._pointer_start_ovf + frame_pnt,
                     part_cursor=frame_pnt,
                     vis_slice=(visslc_start - self._lapping, None),
+                    len_l_prompts=self._overflow_llp,
+                    len_r_prompts=self._basic_lrp,
+                    content_width=self._last_part_area,
+                    part_id=3,
                     part_form=self._last_part_f,
                     lr_prompt=self._prompt_factory(row, 3)
                 )
@@ -1144,6 +1558,10 @@ class DisplayBrowsable(_DisplayBase):
                     display_pointer=self._pointer_start_ovf + frame_pnt,
                     part_cursor=frame_pnt,
                     vis_slice=(visslc_start - self._lapping, visslc_stop),
+                    len_l_prompts=self._overflow_llp,
+                    len_r_prompts=self._overflow_lrp,
+                    content_width=self._middle_part_area,
+                    part_id=2,
                     part_form=self._middle_part_f,
                     lr_prompt=self._prompt_factory(row, 2)
                 )
@@ -1169,7 +1587,7 @@ class DisplayScrollable(DisplayBrowsable):
     the visual text scrolling is triggered.
     """
 
-    def make_row_frame(self, row: _Row, vis_cursor: int) -> RowFrameItem:
+    def _make_row_frame(self, row: _Row, vis_cursor: int) -> RowFrameItem:
         """
         The characteristic row-framing method for completing :class:`_DisplayBase`.
         """
@@ -1182,6 +1600,10 @@ class DisplayScrollable(DisplayBrowsable):
                     display_pointer=self._pointer_start_oor,
                     part_cursor=vis_cursor,
                     vis_slice=None,
+                    len_l_prompts=self._outofran_llp,
+                    len_r_prompts=self._basic_lrp,
+                    content_width=0,
+                    part_id=4,
                     part_form=self._outofran_f,
                     lr_prompt=self._prompt_factory(row, 4)
                 )
@@ -1190,6 +1612,10 @@ class DisplayScrollable(DisplayBrowsable):
                     display_pointer=self._promptl_len + vis_cursor,
                     part_cursor=vis_cursor,
                     vis_slice=(0, None),  # slice(stop=None) identifier for visual end
+                    len_l_prompts=self._basic_llp,
+                    len_r_prompts=self._basic_lrp,
+                    content_width=self._basic_part_area,
+                    part_id=0,
                     part_form=self._basic_part_f,
                     lr_prompt=self._prompt_factory(row, 0)
                 )
@@ -1198,6 +1624,10 @@ class DisplayScrollable(DisplayBrowsable):
                     display_pointer=self._pointer_start_ovf,
                     part_cursor=self._lapping,
                     vis_slice=(vis_cursor - self._lapping, None),  # slice(stop=None) identifier for visual end
+                    len_l_prompts=self._overflow_llp,
+                    len_r_prompts=self._basic_lrp,
+                    content_width=self._last_part_area,
+                    part_id=3,
                     part_form=self._last_part_f,
                     lr_prompt=self._prompt_factory(row, 3)
                 )
@@ -1206,6 +1636,10 @@ class DisplayScrollable(DisplayBrowsable):
                 display_pointer=self._promptl_len + vis_cursor,
                 part_cursor=vis_cursor,
                 vis_slice=(0, self._first_part_area),
+                len_l_prompts=self._basic_llp,
+                len_r_prompts=self._overflow_lrp,
+                content_width=self._first_part_area,
+                part_id=1,
                 part_form=self._first_part_f,
                 lr_prompt=self._prompt_factory(row, 1)
             )
@@ -1214,6 +1648,10 @@ class DisplayScrollable(DisplayBrowsable):
                 display_pointer=self._pointer_start_oor,
                 part_cursor=vis_cursor,
                 vis_slice=None,
+                len_l_prompts=self._outofran_llp,
+                len_r_prompts=self._basic_lrp,
+                content_width=0,
+                part_id=4,
                 part_form=self._outofran_f,
                 lr_prompt=self._prompt_factory(row, 4)
             )
@@ -1222,6 +1660,10 @@ class DisplayScrollable(DisplayBrowsable):
                 display_pointer=self._pointer_start_ovf,
                 part_cursor=self._lapping,
                 vis_slice=(visslc_start, None),  # slice(stop=None) identifier for visual end
+                len_l_prompts=self._overflow_llp,
+                len_r_prompts=self._basic_lrp,
+                content_width=self._last_part_area,
+                part_id=3,
                 part_form=self._last_part_f,
                 lr_prompt=self._prompt_factory(row, 3)
             )
@@ -1230,6 +1672,10 @@ class DisplayScrollable(DisplayBrowsable):
                 display_pointer=self._pointer_start_ovf,
                 part_cursor=self._lapping,
                 vis_slice=(visslc_start, vis_cursor + self._middle_part_area),
+                len_l_prompts=self._overflow_llp,
+                len_r_prompts=self._overflow_lrp,
+                content_width=self._middle_part_area,
+                part_id=2,
                 part_form=self._middle_part_f,
                 lr_prompt=self._prompt_factory(row, 2)
             )
@@ -1319,6 +1765,11 @@ class DisplayStatic(_DisplayBase):
         """
         The characteristic row-framing method for completing :class:`_DisplayBase`.
         """
-
-        return RowFrameItem(display_pointer=len((prompt := self._prompt_factory(row))[0]) + vis_cursor,
-                            part_cursor=vis_cursor, vis_slice=(0, None), lr_prompt=prompt)
+        return RowFrameItem(display_pointer=(llp := len((prompt := self._prompt_factory(row))[0])) + vis_cursor,
+                            part_cursor=vis_cursor,
+                            vis_slice=(0, None),
+                            len_l_prompts=llp,
+                            len_r_prompts=len(prompt[1]),
+                            content_width=-1,
+                            part_id=1,
+                            lr_prompt=prompt)

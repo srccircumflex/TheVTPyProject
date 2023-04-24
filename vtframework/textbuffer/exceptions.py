@@ -44,7 +44,7 @@ class CursorError(EOFError):
     """
 
     def __str__(self) -> str:
-        return str().join(self.args)
+        return str().join(str(a) for a in self.args)
 
 
 class CursorChunkLoadError(CursorError):
@@ -83,7 +83,7 @@ class DatabaseInitError(DatabaseError):
     """
 
     def __str__(self) -> str:
-        return str().join(self.args)
+        return str().join(str(a) for a in self.args)
 
 
 class DatabaseTableError(DatabaseInitError):

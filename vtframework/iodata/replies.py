@@ -69,15 +69,15 @@ class Reply:
         self.SEQS = None
         self.REPLY_VALUES = None
 
-    def __eq__(self, other: Reply):
+    def __eq__(self, other: Reply) -> bool:
         if not isinstance(self, other.__class__):
             return False
         return self.REPLY_VALUES is None or self.REPLY_VALUES == other.REPLY_VALUES
 
-    def __contains__(self, name: str):
+    def __contains__(self, name: str) -> bool:
         return getattr(self.REPLY_VALUES, name.upper().replace(' ', '_'), None) is not None
 
-    def __getitem__(self, name: str):
+    def __getitem__(self, name: str) -> Any:
         return getattr(self.REPLY_VALUES, name.upper().replace(' ', '_'))
 
     def __repr__(self) -> str:

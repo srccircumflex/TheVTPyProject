@@ -267,6 +267,7 @@ class _Manual:
             promptr_len=0,
             lapping=0,
             vis_overflow=("", "", ""),
+            width_min_char=EscSegment(" "),
             highlighter="regex",
             highlighted_rows_cache_max=None,
             highlighted_row_segments_max=None,
@@ -436,7 +437,7 @@ class _Body:
             self.__display__ = DisplayScrollable(
                 __buffer__=__buffer__, width=width, height=height, y_auto_scroll_distance=y_auto_scroll_distance,
                 prompt_factory=prompt_factory, promptl_len=promptl_len, promptr_len=promptr_len, lapping=lapping,
-                vis_overflow=vis_overflow, highlighter=highlighter, 
+                vis_overflow=vis_overflow, width_min_char=EscSegment(" "), highlighter=highlighter,
                 highlighted_rows_cache_max=highlighted_rows_cache_max, 
                 highlighted_row_segments_max=highlighted_row_segments_max,
                 vis_tab=vis_tab, vis_marked=vis_marked, vis_end=vis_end, vis_nb_end=vis_nb_end, visendpos=visendpos,
@@ -448,7 +449,7 @@ class _Body:
             self.__display__ = DisplayBrowsable(
                 __buffer__=__buffer__, width=width, height=height, y_auto_scroll_distance=y_auto_scroll_distance,
                 prompt_factory=prompt_factory, promptl_len=promptl_len, promptr_len=promptr_len, lapping=lapping,
-                vis_overflow=vis_overflow, highlighter=highlighter, 
+                vis_overflow=vis_overflow, width_min_char=EscSegment(" "), highlighter=highlighter,
                 highlighted_rows_cache_max=highlighted_rows_cache_max, 
                 highlighted_row_segments_max=highlighted_row_segments_max,
                 vis_tab=vis_tab, vis_marked=vis_marked, vis_end=vis_end, vis_nb_end=vis_nb_end, visendpos=visendpos,
@@ -584,6 +585,7 @@ class _Input:
             width=self.geo_watcher.size[0],
             lapping=int((self.geo_watcher.size[0] - (len(prompt) + len(eol))) * .8),
             vis_overflow=VIS_OVERFLOW,
+            width_min_char=EscSegment(" "),
             vis_marked=None,
             vis_end=None,
             vis_nb_end=None,

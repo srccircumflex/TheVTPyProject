@@ -36,7 +36,7 @@ class GeoWatcher(Thread):
     per: float
     ctrl_val: bool
 
-    def __init__(self, per: float = .5):
+    def __init__(self, per: float = .005):
         Thread.__init__(self, daemon=True)
         self.bound = lambda *_: None
         self.size = get_terminal_size()

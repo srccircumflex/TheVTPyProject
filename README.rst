@@ -17,6 +17,8 @@ The [ Video Terminal Python ] Project
     :alt: VT-Python-Logo.png
     :target: https://github.com/srccircumflex/TheVTPyProject/wiki
 
+**(p-α)**
+
 Statute
 =======
 
@@ -38,6 +40,17 @@ srccircumflex@outlook.com</a>`.
 
 Presentations
 =============
+
+Window grid and mouse support
+-----------------------------
+
+.. image:: ./_doc/gifs/Grid.gif
+    :align: center
+    :width: 1050
+    :alt: Grid.gif
+    :target: ./_demo/Grid.py
+
+→ `demo widgets`_
 
 SGR Lookup
 ----------
@@ -108,3 +121,4 @@ Markers
 
 .. _demo editor: ./_demo/editor.py
 .. _demo sgr_lookup_tui: ./_demo/sgr_lookup_tui.py
+.. _demo widgets: ./_demo/widgets.py

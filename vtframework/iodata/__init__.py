@@ -79,6 +79,7 @@ from .decpm import (
     BracketedPasteMode,
 )
 from .esccontainer import (
+    EscString,
     EscSegment,
     EscSlice,
     NUL_SLC,

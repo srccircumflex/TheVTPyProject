@@ -225,7 +225,7 @@ class _Marker(Iterable[Union[_Marking, list[int, int]]]):
         else:
             return False
 
-    def add_marks(self, *ranges: Sequence[int, int]):
+    def add_marks(self, *ranges: Sequence[int, int]) -> None:
         """
         Add complete markings. Remove overlapping markings with prioritization of the new ones to be added and
         sort the markings.

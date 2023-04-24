@@ -1,0 +1,58 @@
+def fibonacciIterativ(n: int) -> int:
+    assert n >= 0, "n must be a non-negative integer"
+    a, b = 0, 1
+    for i in range(n):
+        a, b = b, a + b
+    return a
+
+
+def fibonacciFunktional(n: int) -> int:
+    assert n >= 0, "n must be a non-negative integer"
+    return reduce(lambda x, _: (x[1], x[0] + x[1]), range(n), (0, 1))[0]
+
+
+def fibonacciEnd(n: int) -> int:
+    assert n >= 0, "n must be a non-negative integer"
+    return _fibonacciEnd(n, 0, 1)
+
+def _fibonacciEnd(n: int, a: int, b: int) -> int:
+    if n == 0:
+        return a
+    else:
+        return _fibonacciEnd(n - 1, b, a + b)
+
+
+def fibonacciMatrix(n: int) -> int:
+    assert n >= 0, "n must be a non-negative integer"
+    from numpy import array
+    from numpy.linalg import matrix_power
+    return matrix_power(array([[1, 1], [1, 0]]), n).item((0, 1))
+
+
+def fibonacciTuple(n: int) -> int:
+    assert n >= 0, "n must be a non-negative integer"
+    return _fibonacciTuple(n)[0]
+
+def _fibonacciTuple(n: int) -> Tuple[int, int]:
+    if n == 0:
+        return (0, 1)
+    else:
+        a, b = _fibonacciTuple(n - 1)
+        return (b, a + b)
+
+
+def fibonacciDoubling(n: int) -> int:
+    assert n >= 0, "n must be a non-negative integer"
+    return _fibonacciDoubling(n)[0]
+
+def _fibonacciDoubling(n: int) -> Tuple[int, int]:
+    if n == 0:
+        return (0, 1)
+    else:
+        x, y = _fibonacciDoubling(n // 2)
+        a = x * (y * 2 - x)
+        b = x * x + y * y
+        if n % 2 == 0:
+            return (a, b)
+        else:
+            return (b, a + b)

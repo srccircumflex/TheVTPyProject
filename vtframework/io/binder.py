@@ -233,10 +233,10 @@ class Binding:
             raise ValueError(mode)
         return item
 
-    def __eq__(self, other: Binding):
+    def __eq__(self, other: Binding) -> bool:
         return self._hash == other._hash
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Number of bound functions, excl. protected."""
         return len(self.bindings)
 

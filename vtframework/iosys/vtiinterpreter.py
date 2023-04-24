@@ -350,16 +350,17 @@ class _BaseInterpreter:
         - :class:`Utf8Interpreter`
         - :class:`BrPasteMInterpreter`
     """
-    finals: Iterable[int | tuple[int, int]] = ((0x30, 0x7e), 0x20)  # 0–9:;<=>?@A–Z[\]^_`a–z{|}~ SP
+    finals: Iterable[int | tuple[int, int]]
 
     _introducer: bytes
     _buffer: bytes
     _b: bytes
-    buffer: bytes
     target: Callable[[bytes], Key | Char | EscSegment]
 
     bound: Callable[[_BaseInterpreter, bytes], Any]
     bound_final: Callable[[_BaseInterpreter, bytes], Any]
+    
+    __slots__ = ('bound', 'bound_final', '_introducer', '_buffer', '_b', 'target', 'finals',)
 
     @property
     def buffer(self) -> bytes:
@@ -370,6 +371,7 @@ class _BaseInterpreter:
         self._buffer = val
 
     def __init__(self, _t: Callable[[bytes], Key | Char | EscSegment]):
+        self.finals = ((0x30, 0x7e), 0x20)  # 0–9:;<=>?@A–Z[\]^_`a–z{|}~ SP
         self.target = _t
         self.bound = self.bound_final = lambda *_: None
 
@@ -464,89 +466,136 @@ class MouseInterpreter(_BaseInterpreter):
     x: int | tuple | None
     y: int | tuple | None
 
+    interpret: Callable[[bytes], MouseInterpreter | Mouse]
+
+    __slots__ = ('button', 'x', 'y', 'interpret',)
+
     def __init__(self):
         _BaseInterpreter.__init__(self, None)
 
     def __call__(self, _mode: bytes) -> MouseInterpreter:
         self._introducer = self._buffer = self._b = b''
         self._introducer = b'[' + _mode
-        self.finals, self.interpret = {
-            b'M': ((_FinalCount(3),), self.interpret_M),
-            b't': ((_FinalCount(2),), self.interpret_t),
-            b'T': ((_FinalCount(6),), self.interpret_T),
-            b'<': ((0x6d, 0x4d), self.interpret_SGR)  # mM
-        }[_mode]
+        if _mode == b'M':
+            self.finals = (_FinalCount(3),)
+            self.interpret = self.interpret_M
+        elif _mode == b't':
+            self.finals = (_FinalCount(2),)
+            self.interpret = self.interpret_t
+        elif _mode == b'T':
+            self.finals = (_FinalCount(6),)
+            self.interpret = self.interpret_T
+        else:  # elif _mode == b'<':
+            self.finals = (0x6d, 0x4d)  # mM
+            self.interpret = self.interpret_SGR
         self.button = None
         self.y = None
         self.x = None
         return self
 
     def _final(self, _chr: bytes):
-        if isFinal(_chr, self.finals):
-            self.bound_final(self, _chr)
-            for buttons in self._BUTTONS:
-                if self.button in buttons:
-                    mod = self.button - buttons[0]
-                    return Mouse(buttons[0], mod, self.x, self.y)
-            return Mouse(self.button, -1, self.x, self.y)
-        self.bound(self, _chr)
-        return self
+        self.bound_final(self, _chr)
+        for buttons in self._BUTTONS:
+            if self.button in buttons:
+                mod = self.button - buttons[0]
+                return Mouse(buttons[0], mod, self.x, self.y)
+        return Mouse(self.button, -1, self.x, self.y)
 
     def interpret_t(self, _char: bytes):
-        self.button = Mouse.B.L_PRESS
-        if self.y is None:
-            self.y = ord(_char) - 32
-        elif self.x is None:
+        
+        def interpret(_char: bytes):
             self.x = ord(_char) - 32
-        return self._final(_char)
+            return self._final(_char)
+
+        self.button = Mouse.B.L_PRESS
+        self.y = ord(_char) - 32
+        self.interpret = interpret
+        self.bound(self, _char)
+        return self
 
     def interpret_T(self, _char: bytes):
-        self.button = Mouse.B.L_MOVE
-        if self.y is None:
-            self.y = ord(_char) - 32
-        elif self.x is None:
-            self.x = ord(_char) - 32
-        elif isinstance(self.y, int):
-            self.y = (self.y, ord(_char) - 32)
-        elif isinstance(self.x, int):
-            self.x = (self.x, ord(_char) - 32)
-        elif len(self.y) == 2:
-            self.y += (ord(_char) - 32,)
-        elif len(self.x) == 2:
+
+        def ____interpret(_char: bytes):
             self.x += (ord(_char) - 32,)
-        return self._final(_char)
+            return self._final(_char)
+
+        def ___interpret(_char: bytes):
+            self.y += (ord(_char) - 32,)
+            self.interpret = ____interpret
+            self.bound(self, _char)
+            return self
+
+        def __interpret(_char: bytes):
+            self.x = (self.x, ord(_char) - 32)
+            self.interpret = ___interpret
+            self.bound(self, _char)
+            return self
+
+        def _interpret(_char: bytes):
+            self.y = (self.y, ord(_char) - 32)
+            self.interpret = __interpret
+            self.bound(self, _char)
+            return self
+        
+        def interpret(_char: bytes):        
+            self.x = ord(_char) - 32
+            self.interpret = _interpret
+            self.bound(self, _char)
+            return self
+
+        self.button = Mouse.B.L_MOVE
+        self.y = ord(_char) - 32
+        self.interpret = interpret
+        self.bound(self, _char)
+        return self
 
     def interpret_M(self, _char: bytes):
-        if self.button is None:
-            self.button = ord(_char) - 32
-        elif self.x is None:
-            self.x = ord(_char) - 32
-        elif self.y is None:
+        def _interpret(_char: bytes):
             self.y = ord(_char) - 32
-        return self._final(_char)
+            return self._final(_char)
+
+        def interpret(_char: bytes):
+            self.x = ord(_char) - 32
+            self.interpret = _interpret
+            self.bound(self, _char)
+            return self
+
+        self.button = ord(_char) - 32
+        self.interpret = interpret
+        self.bound(self, _char)
+        return self
 
     def interpret_SGR(self, _char: bytes):
-        if self.button is None:
-            if _char == b';':
-                self.button = int(self._buffer)
-                self._reset()
-            else:
-                self._buffer += _char
-        elif self.x is None:
-            if _char == b';':
-                self.x = int(self._buffer)
-                self._reset()
-            else:
-                self._buffer += _char
-        elif self.y is None:
+        
+        def _interpret(_char: bytes):
             if _char in b'mM':
                 self.y = int(self._buffer)
                 self._reset()
                 if _char == b'm':
                     self.button = 3
+                return self._final(_char)
             else:
                 self._buffer += _char
-        return self._final(_char)
+            self.bound(self, _char)
+            return self
+        def interpret(_char: bytes):
+            if _char == b';':
+                self.x = int(self._buffer)
+                self._reset()
+                self.interpret = _interpret
+            else:
+                self._buffer += _char
+            self.bound(self, _char)
+            return self
+
+        if _char == b';':
+            self.button = int(self._buffer)
+            self._reset()
+            self.interpret = interpret
+        else:
+            self._buffer += _char
+        self.bound(self, _char)
+        return self
 
     def __lshift__(self, _char: bytes) -> Union[MouseInterpreter, Mouse]:
         return self.interpret(_char)
@@ -591,6 +640,10 @@ class CtrlSeqsInterpreter(_BaseInterpreter):
 
     MouseInterpreter: MouseInterpreter
     BrPasteMInterpreter: BrPasteMInterpreter
+
+    _MOUSE: bytes
+
+    __slots__ = ('MouseInterpreter', 'BrPasteMInterpreter', '_MOUSE',)
 
     def __init__(self, mouseinterpreter: MouseInterpreter, brpasteminterpreter: BrPasteMInterpreter):
         _BaseInterpreter.__init__(self, lambda b: CSI(b.decode()))
@@ -974,6 +1027,9 @@ class MainInterpreter(_BaseInterpreter):
     bound_esc_intro: Callable[[bytes], Any]
 
     esc_sequences: bool
+
+    __slots__ = ('_Esc_Interpreters', '_UTF8_Interpreter', '_FsFpnF_Interpreter', 'PROTECTED_INTRODUCERS',
+                 'ACCEPTED_META_KEYS', 'SPACE_TARGETS', 'bound_esc', 'bound_esc_intro', 'esc_sequences',)
 
     def __init__(self, esc_sequences: bool = True):
         _BaseInterpreter.__init__(self, None)
