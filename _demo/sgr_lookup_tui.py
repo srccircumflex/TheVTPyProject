@@ -239,7 +239,8 @@ class SGRLookUp:
                 i_display_generator=None,
                 i_before_framing=None,
                 highlighted_rows_cache_max=1000,
-                highlighted_row_segments_max=None
+                highlighted_row_segments_max=None,
+                width_min_char=EscSegment(" ")
             )
 
             self.cache = list()
