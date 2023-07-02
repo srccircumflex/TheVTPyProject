@@ -3,9 +3,10 @@
    :format: html
 
 
-.. .. image:: ./_doc/pics/building_site.png
-    :width: 120
-    :alt: building_side.png
+.. image:: ./_doc/stopped.png
+    :align: left
+    :width: 200
+    :alt: stopped.png
 
 
 The [ Video Terminal Python ] Project
